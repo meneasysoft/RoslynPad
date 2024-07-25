@@ -50,11 +50,11 @@ public partial class MainWindow : Window
 
     private async void OnItemLoaded(object sender, EventArgs e)
     {
-        var editor = (RoslynCodeEditor)sender;
+        if (!(sender is RoslynCodeEditor editor && editor.DataContext is DocumentViewModel viewModel)) return;
+
         editor.Loaded -= OnItemLoaded;
         editor.Focus();
 
-        var viewModel = (DocumentViewModel)editor.DataContext;
         var workingDirectory = Directory.GetCurrentDirectory();
 
         var previous = viewModel.LastGoodPrevious;
@@ -78,7 +78,8 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.Enter)
         {
-            var editor = (RoslynCodeEditor)sender;
+            if (!(sender is RoslynCodeEditor editor && editor.DataContext is DocumentViewModel viewModel)) return;
+
             if (editor.IsCompletionWindowOpen)
             {
                 return;
@@ -86,7 +87,6 @@ public partial class MainWindow : Window
 
             e.Handled = true;
 
-            var viewModel = (DocumentViewModel)editor.DataContext;
             if (viewModel.IsReadOnly) return;
 
             viewModel.Text = editor.Text;

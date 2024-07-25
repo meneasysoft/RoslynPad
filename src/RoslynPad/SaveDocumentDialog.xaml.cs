@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Composition;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -52,8 +48,7 @@ internal partial class SaveDocumentDialog : ISaveDocumentDialog, INotifyProperty
 
     private void DocumentName_TextChanged(object? sender, TextChangedEventArgs e)
     {
-        var textBox = sender as TextBox;
-        if (textBox == null) return;
+        if (sender is not TextBox textBox) return;
 
         var invalidChars = Path.GetInvalidFileNameChars();
         foreach (var c in e.Changes)

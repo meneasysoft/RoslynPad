@@ -1,7 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition=" '$(DefaultTargetFramework)' == '$(LtsTargetFramework)' ">$(DefaultTargetFramework);netstandard2.0</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(DefaultTargetFramework)' != '$(LtsTargetFramework)' ">$(LtsTargetFramework);$(DefaultTargetFramework);netstandard2.0</TargetFrameworks>
+    <IsTrimmable>false</IsTrimmable>
+    <PublishTrimmed>false</PublishTrimmed>
+    <TargetFramework Condition=" '$(TargetFramework)' != '' "></TargetFramework>
+    <TargetFrameworks>$(EarliestSupportedTargetFramework);netstandard2.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(DefaultTargetFramework)' != '$(EarliestSupportedTargetFramework)' ">$(DefaultTargetFramework);$(TargetFrameworks)</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>

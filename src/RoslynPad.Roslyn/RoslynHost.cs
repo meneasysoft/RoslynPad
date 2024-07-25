@@ -3,53 +3,39 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
 using RoslynPad.Roslyn.Diagnostics;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition.Hosting;
-using System.Linq;
 using System.Reflection;
 using AnalyzerReference = Microsoft.CodeAnalysis.Diagnostics.AnalyzerReference;
 using AnalyzerFileReference = Microsoft.CodeAnalysis.Diagnostics.AnalyzerFileReference;
 using Roslyn.Utilities;
-using System.IO;
-using Microsoft.CodeAnalysis.Editor.CSharp;
 
 namespace RoslynPad.Roslyn;
 
 public class RoslynHost : IRoslynHost
 {
     internal static readonly ImmutableArray<string> PreprocessorSymbols =
-        ImmutableArray.CreateRange(new[] { "TRACE", "DEBUG" });
+        ["TRACE", "DEBUG"];
 
     internal static readonly ImmutableArray<Assembly> DefaultCompositionAssemblies =
-        ImmutableArray.Create(
-            // Microsoft.CodeAnalysis.Workspaces
+        [
             typeof(WorkspacesResources).Assembly,
-            // Microsoft.CodeAnalysis.CSharp.Workspaces
             typeof(CSharpWorkspaceResources).Assembly,
-            // Microsoft.CodeAnalysis.Features
             typeof(FeaturesResources).Assembly,
-            // Microsoft.CodeAnalysis.CSharp.Features
             typeof(CSharpFeaturesResources).Assembly,
-            // RoslynPad.Roslyn
-            typeof(RoslynHost).Assembly);
+            typeof(RoslynHost).Assembly,
+        ];
 
     internal static readonly ImmutableArray<Type> DefaultCompositionTypes =
         DefaultCompositionAssemblies.SelectMany(t => t.DefinedTypes).Select(t => t.AsType())
         .Concat(GetDiagnosticCompositionTypes())
-        .Concat(GetEditorFeaturesTypes())
         .ToImmutableArray();
 
     private static IEnumerable<Type> GetDiagnosticCompositionTypes() => MetadataUtil.LoadTypesByNamespaces(
         typeof(Microsoft.CodeAnalysis.Diagnostics.IDiagnosticService).Assembly,
         "Microsoft.CodeAnalysis.Diagnostics",
         "Microsoft.CodeAnalysis.CodeFixes");
-
-    private static IEnumerable<Type> GetEditorFeaturesTypes() => MetadataUtil.LoadTypesBy(
-        typeof(CSharpEditorResources).Assembly, t => t.Name.EndsWith("OptionsStorage", StringComparison.Ordinal))
-        .SelectMany(t => t.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic).Where(t => t.IsDefined(typeof(ExportLanguageServiceAttribute))));
 
     private readonly ConcurrentDictionary<DocumentId, RoslynWorkspace> _workspaces;
     private readonly ConcurrentDictionary<DocumentId, Action<DiagnosticsUpdatedArgs>> _diagnosticsUpdatedNotifiers;
@@ -68,10 +54,10 @@ public class RoslynHost : IRoslynHost
         ImmutableArray<string>? disabledDiagnostics = null,
         ImmutableArray<string>? analyzerConfigFiles = null)
     {
-        if (references == null) references = RoslynHostReferences.Empty;
+        references ??= RoslynHostReferences.Empty;
 
-        _workspaces = new ConcurrentDictionary<DocumentId, RoslynWorkspace>();
-        _diagnosticsUpdatedNotifiers = new ConcurrentDictionary<DocumentId, Action<DiagnosticsUpdatedArgs>>();
+        _workspaces = [];
+        _diagnosticsUpdatedNotifiers = [];
 
         var partTypes = GetDefaultCompositionTypes();
 
@@ -93,8 +79,8 @@ public class RoslynHost : IRoslynHost
         DefaultReferences = references.GetReferences(DocumentationProviderFactory);
         DefaultImports = references.Imports;
 
-        DisabledDiagnostics = disabledDiagnostics ?? ImmutableArray<string>.Empty;
-        AnalyzerConfigFiles = analyzerConfigFiles ?? ImmutableArray<string>.Empty;
+        DisabledDiagnostics = disabledDiagnostics ?? [];
+        AnalyzerConfigFiles = analyzerConfigFiles ?? [];
         GetService<IDiagnosticService>().DiagnosticsUpdated += OnDiagnosticsUpdated;
     }
 
@@ -138,7 +124,7 @@ public class RoslynHost : IRoslynHost
 
     public void CloseWorkspace(RoslynWorkspace workspace)
     {
-        if (workspace == null) throw new ArgumentNullException(nameof(workspace));
+        ArgumentNullException.ThrowIfNull(workspace);
 
         foreach (var documentId in workspace.CurrentSolution.Projects.SelectMany(p => p.DocumentIds))
         {
@@ -153,7 +139,7 @@ public class RoslynHost : IRoslynHost
 
     public void CloseDocument(DocumentId documentId)
     {
-        if (documentId == null) throw new ArgumentNullException(nameof(documentId));
+        ArgumentNullException.ThrowIfNull(documentId);
 
         if (_workspaces.TryGetValue(documentId, out var workspace))
         {
@@ -183,7 +169,7 @@ public class RoslynHost : IRoslynHost
 
     public Document? GetDocument(DocumentId documentId)
     {
-        if (documentId == null) throw new ArgumentNullException(nameof(documentId));
+        ArgumentNullException.ThrowIfNull(documentId);
 
         return _workspaces.TryGetValue(documentId, out var workspace)
             ? workspace.CurrentSolution.GetDocument(documentId)
@@ -192,14 +178,14 @@ public class RoslynHost : IRoslynHost
 
     public DocumentId AddDocument(DocumentCreationArgs args)
     {
-        if (args == null) throw new ArgumentNullException(nameof(args));
+        ArgumentNullException.ThrowIfNull(args);
 
         return AddDocument(CreateWorkspace(), args);
     }
 
     public DocumentId AddRelatedDocument(DocumentId relatedDocumentId, DocumentCreationArgs args, bool addProjectReference = true)
     {
-        if (args == null) throw new ArgumentNullException(nameof(args));
+        ArgumentNullException.ThrowIfNull(args);
 
         if (!_workspaces.TryGetValue(relatedDocumentId, out var workspace))
         {
@@ -251,15 +237,15 @@ public class RoslynHost : IRoslynHost
     protected virtual IEnumerable<AnalyzerReference> GetSolutionAnalyzerReferences()
     {
         var loader = GetService<IAnalyzerAssemblyLoader>();
-        yield return new AnalyzerFileReference(typeof(Compilation).Assembly.Location, loader);
-        yield return new AnalyzerFileReference(typeof(CSharpResources).Assembly.Location, loader);
-        yield return new AnalyzerFileReference(typeof(FeaturesResources).Assembly.Location, loader);
-        yield return new AnalyzerFileReference(typeof(CSharpFeaturesResources).Assembly.Location, loader);
+        yield return new AnalyzerFileReference(MetadataUtil.GetAssemblyPath(typeof(Compilation).Assembly), loader);
+        yield return new AnalyzerFileReference(MetadataUtil.GetAssemblyPath(typeof(CSharpResources).Assembly), loader);
+        yield return new AnalyzerFileReference(MetadataUtil.GetAssemblyPath(typeof(FeaturesResources).Assembly), loader);
+        yield return new AnalyzerFileReference(MetadataUtil.GetAssemblyPath(typeof(CSharpFeaturesResources).Assembly), loader);
     }
 
     public void UpdateDocument(Document document)
     {
-        if (document == null) throw new ArgumentNullException(nameof(document));
+        ArgumentNullException.ThrowIfNull(document);
 
         if (!_workspaces.TryGetValue(document.Id, out var workspace))
         {
@@ -272,9 +258,9 @@ public class RoslynHost : IRoslynHost
     protected virtual CompilationOptions CreateCompilationOptions(DocumentCreationArgs args, bool addDefaultImports)
     {
         var compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
-            usings: addDefaultImports ? DefaultImports : ImmutableArray<string>.Empty,
+            usings: addDefaultImports ? DefaultImports : [],
             allowUnsafe: true,
-            sourceReferenceResolver: new SourceFileResolver(ImmutableArray<string>.Empty, args.WorkingDirectory),
+            sourceReferenceResolver: new SourceFileResolver([], args.WorkingDirectory),
             // all #r references are resolved by the editor/msbuild
             metadataReferenceResolver: DummyScriptMetadataResolver.Instance,
             nullableContextOptions: NullableContextOptions.Enable);
@@ -318,7 +304,7 @@ public class RoslynHost : IRoslynHost
             isSubmission: isScript,
             parseOptions: parseOptions,
             compilationOptions: compilationOptions,
-            metadataReferences: previousProject != null ? ImmutableArray<MetadataReference>.Empty : DefaultReferences,
+            metadataReferences: previousProject != null ? [] : DefaultReferences,
             projectReferences: previousProject != null ? new[] { new ProjectReference(previousProject.Id) } : null)
             .WithAnalyzerConfigDocuments(analyzerConfigDocuments));
 

@@ -1,11 +1,6 @@
 ﻿#nullable disable
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Security;
-using System.Threading.Tasks;
 
 namespace RoslynPad.Build;
 
@@ -123,12 +118,17 @@ internal static class IOUtilities
         }
     }
 
-    public static void DirectoryCopy(string source, string destination, bool overwrite)
+    public static void DirectoryCopy(string source, string destination, bool overwrite, bool recursive = true)
     {
         foreach (var file in EnumerateFiles(source))
         {
             var destinationFile = Path.Combine(destination, Path.GetFileName(file));
             FileCopy(file, destinationFile, overwrite);
+        }
+
+        if (!recursive)
+        {
+            return;
         }
 
         foreach (var directory in EnumerateDirectories(source))

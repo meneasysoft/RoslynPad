@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Composition;
-using System.IO;
+﻿using System.Composition;
 using RoslynPad.UI.Utilities;
 
 namespace RoslynPad.UI;
@@ -13,17 +10,11 @@ public enum DocumentFileChangeType
     Renamed
 }
 
-public class DocumentFileChanged
+public class DocumentFileChanged(DocumentFileChangeType type, string path, string? newPath = null)
 {
-    public DocumentFileChanged(DocumentFileChangeType type, string path, string? newPath = null)
-    {
-        Type = type;
-        Path = path;
-        NewPath = newPath;
-    }
-    public DocumentFileChangeType Type { get; }
-    public string Path { get; }
-    public string? NewPath { get; }
+    public DocumentFileChangeType Type { get; } = type;
+    public string Path { get; } = path;
+    public string? NewPath { get; } = newPath;
 }
 
 [Export]
@@ -37,7 +28,7 @@ public class DocumentFileWatcher : IDisposable, IObservable<DocumentFileChanged>
     public DocumentFileWatcher(IAppDispatcher appDispatcher)
     {
         _appDispatcher = appDispatcher;
-        _observers = new List<IObserver<DocumentFileChanged>>();
+        _observers = [];
         _fileSystemWatcher = new FileSystemWatcher();
         _fileSystemWatcher.Created += OnChanged;
         _fileSystemWatcher.Renamed += OnRenamed;
@@ -72,17 +63,13 @@ public class DocumentFileWatcher : IDisposable, IObservable<DocumentFileChanged>
 
     private DocumentFileChangeType ToDocumentFileChangeType(WatcherChangeTypes changeType)
     {
-        switch (changeType)
+        return changeType switch
         {
-            case WatcherChangeTypes.Created:
-                return DocumentFileChangeType.Created;
-            case WatcherChangeTypes.Deleted:
-                return DocumentFileChangeType.Deleted;
-            case WatcherChangeTypes.Renamed:
-                return DocumentFileChangeType.Renamed;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(changeType), changeType, null);
-        }
+            WatcherChangeTypes.Created => DocumentFileChangeType.Created,
+            WatcherChangeTypes.Deleted => DocumentFileChangeType.Deleted,
+            WatcherChangeTypes.Renamed => DocumentFileChangeType.Renamed,
+            _ => throw new ArgumentOutOfRangeException(nameof(changeType), changeType, null),
+        };
     }
 
     private void OnRenamed(object? sender, RenamedEventArgs e)

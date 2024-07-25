@@ -1,9 +1,8 @@
-﻿using System;
-using System.Composition;
-using System.IO;
+﻿using System.Composition;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using RoslynPad.Themes;
 
 namespace RoslynPad.UI;
 
@@ -19,6 +18,11 @@ internal class ApplicationSettings : IApplicationSettings
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        Converters =
+        {
+            new JsonStringEnumConverter()
+        }
     };
 
     private readonly ITelemetryProvider? _telemetryProvider;
@@ -115,7 +119,7 @@ internal class ApplicationSettings : IApplicationSettings
     {
         private const int LiveModeDelayMsDefault = 2000;
         private const int DefaultFontSize = 12;
-
+        private BuiltInTheme _builtInTheme;
         private bool _sendErrors;
         private string? _latestVersion;
         private string? _windowBounds;
@@ -134,6 +138,8 @@ internal class ApplicationSettings : IApplicationSettings
         private double? _windowFontSize;
         private bool _formatDocumentOnComment = true;
         private string? _effectiveDocumentPath;
+        private string? _customThemePath;
+        private ThemeType? _customThemeType;
 
         public void LoadDefaultSettings()
         {
@@ -168,6 +174,7 @@ internal class ApplicationSettings : IApplicationSettings
             set => SetProperty(ref _windowBounds, value);
         }
 
+        [JsonPropertyName("dockLayoutV2")]
         public string? DockLayout
         {
             get => _dockLayout;
@@ -246,6 +253,24 @@ internal class ApplicationSettings : IApplicationSettings
             set => SetProperty(ref _formatDocumentOnComment, value);
         }
 
+        public string? CustomThemePath
+        {
+            get => _customThemePath;
+            set => SetProperty(ref _customThemePath, value);
+        }
+
+        public ThemeType? CustomThemeType
+        {
+            get => _customThemeType;
+            set => SetProperty(ref _customThemeType, value);
+        }
+
+        public BuiltInTheme BuiltInTheme
+        {
+            get => _builtInTheme;
+            set => SetProperty(ref _builtInTheme, value);
+        }
+
         [JsonIgnore]
         public string EffectiveDocumentPath
         {
@@ -265,6 +290,6 @@ internal class ApplicationSettings : IApplicationSettings
         }
 
         [JsonIgnore]
-        public IApplicationSettings? Settings { get; set; }
+        public ApplicationSettings? Settings { get; set; }
     }
 }

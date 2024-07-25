@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.Shared.Extensions;
@@ -10,7 +9,7 @@ namespace RoslynPad.Roslyn.Completion.Providers;
 [ExportCompletionProvider("DirectivesCompletionProvider", LanguageNames.CSharp)]
 internal class DirectivesCompletionProvider : CompletionProvider
 {
-    private static readonly ImmutableArray<string> s_directivesName = ImmutableArray.Create("r");
+    private static readonly ImmutableArray<string> s_directivesName = ["r"];
 
     public override async Task ProvideCompletionsAsync(CompletionContext context)
     {

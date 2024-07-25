@@ -2,7 +2,6 @@
 
 using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.PickMembers;
@@ -10,15 +9,10 @@ using Microsoft.CodeAnalysis.PickMembers;
 namespace RoslynPad.Roslyn.LanguageServices.PickMembers;
 
 [ExportWorkspaceService(typeof(IPickMembersService), ServiceLayer.Host), Shared]
-internal class PickMembersService : IPickMembersService
+[method: ImportingConstructor]
+internal class PickMembersService(ExportFactory<IPickMembersDialog> dialogFactory) : IPickMembersService
 {
-    private readonly ExportFactory<IPickMembersDialog> _dialogFactory;
-
-    [ImportingConstructor]
-    public PickMembersService(ExportFactory<IPickMembersDialog> dialogFactory)
-    {
-        _dialogFactory = dialogFactory;
-    }
+    private readonly ExportFactory<IPickMembersDialog> _dialogFactory = dialogFactory;
 
     public PickMembersResult PickMembers(
         string title, ImmutableArray<ISymbol> members, ImmutableArray<PickMembersOption> options = default, bool selectAll = true)

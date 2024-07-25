@@ -1,6 +1,6 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -57,7 +57,9 @@ public static class RuntimeInitializer
         AppDomain.CurrentDomain.ProcessExit += (o, e) => consoleDumper.Flush();
     }
 
+#pragma warning disable CA2249 // Consider using 'string.Contains' instead of 'string.IndexOf'
     private static bool UseJsonOutput() => Environment.CommandLine.IndexOf("--json", StringComparison.OrdinalIgnoreCase) >= 0;
+#pragma warning restore CA2249 // Consider using 'string.Contains' instead of 'string.IndexOf'
 
     private static bool TryAttachToParentProcess()
     {
@@ -66,7 +68,7 @@ public static class RuntimeInitializer
             return false;
         }
 
-        AttachToParentProcess(int.Parse(parentProcessId));
+        AttachToParentProcess(int.Parse(parentProcessId, CultureInfo.InvariantCulture));
 
         return true;
     }

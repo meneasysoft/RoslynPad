@@ -1,19 +1,17 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System.Collections.Immutable;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Completion;
 using Roslyn.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
-using System.IO;
 
 namespace RoslynPad.Roslyn.Completion.Providers;
 
 internal abstract class AbstractLoadDirectiveCompletionProvider : AbstractDirectivePathCompletionProvider
 {
     private static readonly CompletionItemRules s_rules = CompletionItemRules.Create(
-         filterCharacterRules: ImmutableArray<CharacterSetModificationRule>.Empty,
-         commitCharacterRules: ImmutableArray.Create(CharacterSetModificationRule.Create(CharacterSetModificationKind.Replace, GetCommitCharacters())),
+         filterCharacterRules: [],
+         commitCharacterRules: [CharacterSetModificationRule.Create(CharacterSetModificationKind.Replace, GetCommitCharacters())],
          enterKeyRule: EnterKeyRule.Never,
          selectionBehavior: CompletionItemSelectionBehavior.HardSelection);
 
@@ -42,7 +40,7 @@ internal abstract class AbstractLoadDirectiveCompletionProvider : AbstractDirect
             return;
         }
 
-        var helper = GetFileSystemCompletionHelper(context.Document, Microsoft.CodeAnalysis.Glyph.CSharpFile, ImmutableArray.Create(extension), s_rules);
+        var helper = GetFileSystemCompletionHelper(context.Document, Microsoft.CodeAnalysis.Glyph.CSharpFile, [extension], s_rules);
         context.AddItems(await helper.GetItemsAsync(pathThroughLastSlash, context.CancellationToken).ConfigureAwait(false));
     }
 }

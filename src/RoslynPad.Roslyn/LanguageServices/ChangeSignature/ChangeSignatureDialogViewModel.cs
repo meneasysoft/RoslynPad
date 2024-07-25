@@ -1,9 +1,7 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.ChangeSignature;
 
@@ -17,7 +15,7 @@ internal class ChangeSignatureDialogViewModel : NotificationObject
     private readonly List<ParameterViewModel> _parametersWithoutDefaultValues;
     private readonly List<ParameterViewModel> _parametersWithDefaultValues;
     private readonly ParameterViewModel? _paramsParameter;
-    private readonly HashSet<ParameterViewModel> _disabledParameters = new();
+    private readonly HashSet<ParameterViewModel> _disabledParameters = [];
     private readonly ImmutableArray<SymbolDisplayPart> _declarationParts;
 
     internal ChangeSignatureDialogViewModel(ParameterConfiguration parameters, ISymbol symbol)
@@ -294,11 +292,11 @@ internal class ChangeSignatureDialogViewModel : NotificationObject
         return _disabledParameters.Contains(parameterViewModel);
     }
 
-    private IList<ParameterViewModel> GetSelectedGroup()
+    private List<ParameterViewModel> GetSelectedGroup()
     {
         var index = SelectedIndex;
         index = _thisParameter == null ? index : index - 1;
-        return index < _parametersWithoutDefaultValues.Count ? _parametersWithoutDefaultValues : index < _parametersWithoutDefaultValues.Count + _parametersWithDefaultValues.Count ? _parametersWithDefaultValues : new List<ParameterViewModel>();
+        return index < _parametersWithoutDefaultValues.Count ? _parametersWithoutDefaultValues : index < _parametersWithoutDefaultValues.Count + _parametersWithDefaultValues.Count ? _parametersWithDefaultValues : [];
     }
 
     public bool IsOkButtonEnabled
@@ -333,18 +331,12 @@ internal class ChangeSignatureDialogViewModel : NotificationObject
         }
     }
 
-    public class ParameterViewModel
+    public class ParameterViewModel(ChangeSignatureDialogViewModel changeSignatureDialogViewModel, ExistingParameter parameter)
     {
-        private readonly ChangeSignatureDialogViewModel _changeSignatureDialogViewModel;
+        private readonly ChangeSignatureDialogViewModel _changeSignatureDialogViewModel = changeSignatureDialogViewModel;
 
-        public ExistingParameter Parameter { get; }
+        public ExistingParameter Parameter { get; } = parameter;
         public IParameterSymbol ParameterSymbol => Parameter.Symbol;
-
-        public ParameterViewModel(ChangeSignatureDialogViewModel changeSignatureDialogViewModel, ExistingParameter parameter)
-        {
-            _changeSignatureDialogViewModel = changeSignatureDialogViewModel;
-            Parameter = parameter;
-        }
 
         public string Modifier
         {
@@ -407,7 +399,7 @@ internal class ChangeSignatureDialogViewModel : NotificationObject
                 }
 
                 if (this == _changeSignatureDialogViewModel._parametersWithoutDefaultValues.LastOrDefault() &&
-                    (_changeSignatureDialogViewModel._parametersWithDefaultValues.Any() || _changeSignatureDialogViewModel._paramsParameter != null))
+                    (_changeSignatureDialogViewModel._parametersWithDefaultValues.Count != 0 || _changeSignatureDialogViewModel._paramsParameter != null))
                 {
                     return true;
                 }

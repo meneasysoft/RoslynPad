@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Composition;
-using System.Linq;
+﻿using System.Composition;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Host.Mef;
 
@@ -12,15 +10,10 @@ public interface ISnippetInfoService
 }
 
 [ExportLanguageService(typeof(Microsoft.CodeAnalysis.Snippets.ISnippetInfoService), LanguageNames.CSharp)]
-internal sealed class SnippetInfoService : Microsoft.CodeAnalysis.Snippets.ISnippetInfoService
+[method: ImportingConstructor]
+internal sealed class SnippetInfoService([Import(AllowDefault = true)] ISnippetInfoService inner) : Microsoft.CodeAnalysis.Snippets.ISnippetInfoService
 {
-    private readonly ISnippetInfoService _inner;
-
-    [ImportingConstructor]
-    public SnippetInfoService([Import(AllowDefault = true)] ISnippetInfoService inner)
-    {
-        _inner = inner;
-    }
+    private readonly ISnippetInfoService _inner = inner;
 
     public IEnumerable<Microsoft.CodeAnalysis.Snippets.SnippetInfo> GetSnippetsIfAvailable()
     {

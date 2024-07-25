@@ -1,11 +1,4 @@
-﻿using System;
-using Avalonia;
-using Avalonia.Media;
-using AvaloniaEdit.Editing;
-using AvaloniaEdit.Rendering;
-using Avalonia.Controls;
-
-namespace RoslynPad.Editor;
+﻿namespace RoslynPad.Editor;
 
 public class MarkerMargin : AbstractMargin
 {
@@ -21,7 +14,7 @@ public class MarkerMargin : AbstractMargin
 
     public event EventHandler? MarkerPointerDown;
 
-    private Control CreateMarker()
+    private Image CreateMarker()
     {
         var marker = new Image();
         marker.PointerPressed += (o, e) => { e.Handled = true; MarkerPointerDown?.Invoke(o, e); };

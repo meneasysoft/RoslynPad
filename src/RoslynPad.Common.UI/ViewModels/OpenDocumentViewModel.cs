@@ -1,14 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Composition;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Rename;
@@ -24,7 +19,7 @@ using RoslynPad.Utilities;
 namespace RoslynPad.UI;
 
 [Export]
-public class OpenDocumentViewModel : NotificationObject
+public class OpenDocumentViewModel : NotificationObject, IDisposable
 {
     private const string DefaultDocumentName = "New";
     private const string RegularFileExtension = ".cs";
@@ -38,8 +33,8 @@ public class OpenDocumentViewModel : NotificationObject
     private readonly IPlatformsFactory _platformsFactory;
     private readonly ObservableCollection<IResultObject> _results;
     private readonly List<RestoreResultObject> _restoreResults;
-    
-    private IExecutionHost? _executionHost;
+
+    private ExecutionHost? _executionHost;
     private ExecutionHostParameters? _executionHostParameters;
     private CancellationTokenSource? _runCts;
     private bool _isRunning;
@@ -110,12 +105,9 @@ public class OpenDocumentViewModel : NotificationObject
             }
 
             var isScript = Path.GetExtension(Document?.Name)?.Equals(ScriptFileExtension, StringComparison.OrdinalIgnoreCase);
-            if (isScript is null)
-            {
-                throw new InvalidOperationException("Document not initialized");
-            }
-
-            return _sourceCodeKind ??= isScript == true ? SourceCodeKind.Script : SourceCodeKind.Regular;
+            return isScript is null
+                ? throw new InvalidOperationException("Document not initialized")
+                : (_sourceCodeKind ??= isScript == true ? SourceCodeKind.Script : SourceCodeKind.Regular);
         }
         set => _sourceCodeKind = value;
     }
@@ -136,7 +128,7 @@ public class OpenDocumentViewModel : NotificationObject
     }
 
     [ImportingConstructor]
-    public OpenDocumentViewModel(IServiceProvider serviceProvider, MainViewModelBase mainViewModel, ICommandProvider commands, IAppDispatcher appDispatcher, ITelemetryProvider telemetryProvider, ILogger<OpenDocumentViewModel> logger)
+    public OpenDocumentViewModel(IServiceProvider serviceProvider, MainViewModel mainViewModel, ICommandProvider commands, IAppDispatcher appDispatcher, ITelemetryProvider telemetryProvider, ILogger<OpenDocumentViewModel> logger)
     {
         Id = Guid.NewGuid().ToString("n");
         BuildPath = Path.Combine(Path.GetTempPath(), "roslynpad", "build", Id);
@@ -146,8 +138,8 @@ public class OpenDocumentViewModel : NotificationObject
         _logger = logger;
         _platformsFactory = serviceProvider.GetRequiredService<IPlatformsFactory>();
         _serviceProvider = serviceProvider;
-        _results = new ObservableCollection<IResultObject>();
-        _restoreResults = new List<RestoreResultObject>();
+        _results = [];
+        _restoreResults = [];
 
         MainViewModel = mainViewModel;
         CommandProvider = commands;
@@ -201,7 +193,6 @@ public class OpenDocumentViewModel : NotificationObject
         _executionHost.Disassembled += ExecutionHostOnDisassembled;
         _executionHost.RestoreStarted += OnRestoreStarted;
         _executionHost.RestoreCompleted += OnRestoreCompleted;
-        _executionHost.RestoreMessage += AddRestoreResult;
         _executionHost.ProgressChanged += p => ReportedProgress = p.Progress;
     }
 
@@ -474,7 +465,7 @@ public class OpenDocumentViewModel : NotificationObject
 
     private async Task TerminateAsync()
     {
-        Reset();
+        ResetCancellation();
         try
         {
             await Task.Run(() => _executionHost?.TerminateAsync()).ConfigureAwait(false);
@@ -627,13 +618,12 @@ public class OpenDocumentViewModel : NotificationObject
     public DocumentId DocumentId
     {
         get => _documentId ?? throw new ArgumentNullException(nameof(_documentId));
-        private set
-        {
-            _documentId = value;
-        }
+        private set => _documentId = value;
     }
 
-    public MainViewModelBase MainViewModel { get; }
+    public bool HasDocumentId => _documentId is not null;
+
+    public MainViewModel MainViewModel { get; }
     public ICommandProvider CommandProvider { get; }
     public NuGetDocumentViewModel NuGet { get; }
     public string Title => Document != null && !Document.IsAutoSaveOnly ? Document.Name : DefaultDocumentName + GetFileExtension();
@@ -660,13 +650,22 @@ public class OpenDocumentViewModel : NotificationObject
 
     private async Task RunAsync()
     {
-        if (IsRunning) return;
+        if (IsRunning || _executionHost is null || _executionHostParameters is null)
+        {
+            return;
+        }
 
         ReportedProgress = null;
 
-        Reset();
+        var cancellationToken = ResetCancellation();
 
         await MainViewModel.AutoSaveOpenDocuments().ConfigureAwait(true);
+
+        var documentPath = IsDirty ? Document?.GetAutoSavePath() : Document?.Path;
+        if (documentPath is null)
+        {
+            return;
+        }
 
         SetIsRunning(true);
 
@@ -677,10 +676,8 @@ public class OpenDocumentViewModel : NotificationObject
             ILText = DefaultILText;
         }
 
-        var cancellationToken = _runCts!.Token;
         try
         {
-            var code = await GetCodeAsync(cancellationToken).ConfigureAwait(true);
             if (_executionHost is not null && _executionHostParameters is not null)
             {
                 // Make sure the execution working directory matches the current script path
@@ -688,7 +685,7 @@ public class OpenDocumentViewModel : NotificationObject
                 if (_executionHostParameters.WorkingDirectory != WorkingDirectory)
                     _executionHostParameters.WorkingDirectory = WorkingDirectory;
 
-                await _executionHost.ExecuteAsync(code, ShowIL, OptimizationLevel).ConfigureAwait(true);
+                await _executionHost.ExecuteAsync(documentPath, ShowIL, OptimizationLevel, cancellationToken).ConfigureAwait(true);
             }
         }
         catch (CompilationErrorException ex)
@@ -696,7 +693,7 @@ public class OpenDocumentViewModel : NotificationObject
             foreach (var diagnostic in ex.Diagnostics)
             {
                 var startLinePosition = diagnostic.Location.GetLineSpan().StartLinePosition;
-                AddResult(CompilationErrorResultObject.Create(diagnostic.Severity.ToString(), diagnostic.Id, diagnostic.GetMessage(), startLinePosition.Line, startLinePosition.Character));
+                AddResult(CompilationErrorResultObject.Create(diagnostic.Severity.ToString(), diagnostic.Id, diagnostic.GetMessage(CultureInfo.InvariantCulture), startLinePosition.Line, startLinePosition.Character));
             }
         }
         catch (Exception ex)
@@ -737,7 +734,7 @@ public class OpenDocumentViewModel : NotificationObject
         {
             return SelectedText;
         }
-           
+
         var document = MainViewModel.RoslynHost.GetDocument(DocumentId);
         if (document == null)
         {
@@ -748,14 +745,17 @@ public class OpenDocumentViewModel : NotificationObject
             .ConfigureAwait(false)).ToString();
     }
 
-    private void Reset()
+    private CancellationToken ResetCancellation()
     {
         if (_runCts != null)
         {
             _runCts.Cancel();
             _runCts.Dispose();
         }
-        _runCts = new CancellationTokenSource();
+
+        var runCts = new CancellationTokenSource();
+        _runCts = runCts;
+        return runCts.Token;
     }
 
     public async Task<string> LoadTextAsync()
@@ -814,5 +814,20 @@ public class OpenDocumentViewModel : NotificationObject
         }
 
         UpdatePackages(alwaysRestore: false);
+    }
+
+    public void Dispose()
+    {
+        _runCts?.Dispose();
+    }
+
+    public event Action<(int line, int column)>? EditorChangeLocation;
+
+    public void TryJumpToLine(IResultWithLineNumber result)
+    {
+        if (result.LineNumber is { } lineNumber)
+        {
+            EditorChangeLocation?.Invoke((lineNumber, result.Column));
+        }
     }
 }

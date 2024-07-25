@@ -1,8 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace RoslynPad.Build;
+﻿namespace RoslynPad.Build;
 
 public static class SemaphoreSlimExtensions
 {
@@ -18,11 +14,9 @@ public static class SemaphoreSlimExtensions
         return new SemaphoreDisposer(semaphore);
     }
 
-    public readonly struct SemaphoreDisposer : IDisposable
+    public readonly struct SemaphoreDisposer(SemaphoreSlim semaphore) : IDisposable
     {
-        private readonly SemaphoreSlim _semaphore;
-
-        public SemaphoreDisposer(SemaphoreSlim semaphore) => _semaphore = semaphore;
+        private readonly SemaphoreSlim _semaphore = semaphore;
 
         public void Dispose() => _semaphore.Release();
     }

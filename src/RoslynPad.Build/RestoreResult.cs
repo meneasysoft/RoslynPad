@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace RoslynPad.Build;
+﻿namespace RoslynPad.Build;
 
 internal class RestoreResult
 {
@@ -11,7 +9,7 @@ internal class RestoreResult
     private RestoreResult(bool success, string[]? errors)
     {
         Success = success;
-        Errors = errors ?? Array.Empty<string>();
+        Errors = errors ?? [];
     }
 
     public bool Success { get; }

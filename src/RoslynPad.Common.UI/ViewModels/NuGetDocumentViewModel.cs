@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Composition;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Composition;
 using RoslynPad.Utilities;
 
 namespace RoslynPad.UI;
@@ -126,6 +122,13 @@ public sealed class NuGetDocumentViewModel : NotificationObject
                         _nuGetViewModel.GetPackagesAsync(searchTerm, includePrerelease: Prerelease,
                             exactMatch: ExactMatch, cancellationToken: cancellationToken), cancellationToken)
                     .ConfigureAwait(true);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                foreach (var package in packages)
+                {
+                    package.InstallPackageCommand = InstallPackageCommand;
+                }
 
                 Packages = packages;
                 IsPackagesMenuOpen = Packages.Count > 0;

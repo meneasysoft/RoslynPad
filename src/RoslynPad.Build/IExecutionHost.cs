@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Threading.Tasks;
+﻿using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -23,12 +20,11 @@ internal interface IExecutionHost
     event Action? ReadInput;
     event Action? RestoreStarted;
     event Action<RestoreResult>? RestoreCompleted;
-    event Action<RestoreResultObject>? RestoreMessage;
     event Action<ProgressResultObject>? ProgressChanged;
 
     void ClearRestoreCache();
     Task UpdateReferencesAsync(bool alwaysRestore);
     Task SendInputAsync(string input);
-    Task ExecuteAsync(string code, bool disassemble, OptimizationLevel? optimizationLevel);
+    Task ExecuteAsync(string path, bool disassemble, OptimizationLevel? optimizationLevel, CancellationToken cancellationToken);
     Task TerminateAsync();
 }

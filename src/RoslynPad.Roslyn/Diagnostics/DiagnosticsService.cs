@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Collections.Immutable;
 using System.Composition;
 
 namespace RoslynPad.Roslyn.Diagnostics;
@@ -12,9 +12,12 @@ internal sealed class DiagnosticsService : IDiagnosticService
         inner.DiagnosticsUpdated += OnDiagnosticsUpdated;
     }
 
-    private void OnDiagnosticsUpdated(object? sender, Microsoft.CodeAnalysis.Diagnostics.DiagnosticsUpdatedArgs e)
+    private void OnDiagnosticsUpdated(object? sender, ImmutableArray<Microsoft.CodeAnalysis.Diagnostics.DiagnosticsUpdatedArgs> e)
     {
-        DiagnosticsUpdated?.Invoke(this, new DiagnosticsUpdatedArgs(e));
+        foreach (var diagnostic in e)
+        {
+            DiagnosticsUpdated?.Invoke(this, new DiagnosticsUpdatedArgs(diagnostic));
+        }
     }
 
     public event EventHandler<DiagnosticsUpdatedArgs>? DiagnosticsUpdated;

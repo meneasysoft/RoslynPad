@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-
-namespace RoslynPad.Runtime;
+﻿namespace RoslynPad.Runtime;
 
 internal class DirectConsoleDumper : IConsoleDumper
 {
@@ -18,7 +15,7 @@ internal class DirectConsoleDumper : IConsoleDumper
     {
         try
         {
-            DumpResultObject(ResultObject.Create(data.Object, data.Quotas, data.Header));
+            DumpResultObject(ResultObject.Create(data.Object, data.Quotas, data.Header, data.Line));
         }
         catch (Exception ex)
         {

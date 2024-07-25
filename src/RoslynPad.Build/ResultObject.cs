@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -11,10 +10,19 @@ public interface IResultObject
     void WriteTo(StringBuilder builder);
 }
 
-public class ResultObject : IResultObject
+public interface IResultWithLineNumber
+{
+    int? LineNumber { get; }
+    int Column { get; }
+}
+
+public class ResultObject : IResultObject, IResultWithLineNumber
 {
     [JsonPropertyName("h")]
     public string? Header { get; set; }
+    [JsonPropertyName("l")]
+    public int? LineNumber { get; set; }
+    int IResultWithLineNumber.Column => 0;
 
     [JsonPropertyName("v")]
     public string? Value { get; set; }
@@ -37,9 +45,9 @@ public class ResultObject : IResultObject
         return builder.ToString();
     }
 
-    public void WriteTo(StringBuilder stringBuilder)
+    public void WriteTo(StringBuilder builder)
     {
-        BuildStringRecursive(stringBuilder, 0);
+        BuildStringRecursive(builder, 0);
     }
 
     private void BuildStringRecursive(StringBuilder builder, int level)
@@ -67,9 +75,6 @@ public class ResultObject : IResultObject
 
 public class ExceptionResultObject : ResultObject
 {
-    [JsonPropertyName("l")]
-    public int LineNumber { get; set; }
-
     [JsonPropertyName("m")]
     public string? Message { get; set; }
 }
@@ -84,11 +89,11 @@ public class ProgressResultObject
     public double? Progress { get; set; }
 }
 
-public class CompilationErrorResultObject : IResultObject
+public class CompilationErrorResultObject : IResultObject, IResultWithLineNumber
 {
     public string? ErrorCode { get; set; }
     public string? Severity { get; set; }
-    public int Line { get; set; }
+    public int? LineNumber { get; set; }
     public int Column { get; set; }
     public string? Message { get; set; }
 
@@ -98,7 +103,7 @@ public class CompilationErrorResultObject : IResultObject
         Severity = severity,
         Message = message,
         // 0 to 1-based
-        Line = line + 1,
+        LineNumber = line + 1,
         Column = column + 1,
     };
 
@@ -109,19 +114,12 @@ public class CompilationErrorResultObject : IResultObject
     public void WriteTo(StringBuilder builder) => builder.Append(ToString());
 }
 
-public class RestoreResultObject : IResultObject
+public class RestoreResultObject(string message, string severity, string? value = null) : IResultObject
 {
-    private readonly string? _value;
+    private readonly string? _value = value;
 
-    public RestoreResultObject(string message, string severity, string? value = null)
-    {
-        Message = message;
-        Severity = severity;
-        _value = value;
-    }
-
-    public string Message { get; set; }
-    public string Severity { get; set; }
+    public string Message { get; set; } = message;
+    public string Severity { get; set; } = severity;
     public string Value => _value ?? Message;
 
     public void WriteTo(StringBuilder builder) => builder.Append(Value);

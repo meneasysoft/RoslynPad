@@ -1,19 +1,6 @@
-﻿using System;
-using System.Linq;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Threading;
-using ICSharpCode.AvalonEdit.Document;
-using ICSharpCode.AvalonEdit.Editing;
-using ICSharpCode.AvalonEdit.Rendering;
+﻿using System.Windows.Controls.Primitives;
 using ICSharpCode.AvalonEdit.Search;
-using ICSharpCode.AvalonEdit;
 using Localization = ICSharpCode.AvalonEdit.Search.Localization;
-using System.Collections.Generic;
 
 namespace RoslynPad.Editor;
 
@@ -154,7 +141,7 @@ public class SearchReplacePanel : Control
         // only reset as long as there are results
         // if no results are found, the "no matches found" message should not flicker.
         // if results are found by the next run, the message will be hidden inside DoSearch ...
-        if (_renderer.CurrentResults.Any())
+        if (_renderer.CurrentResults.Count != 0)
             _messageView.IsOpen = false;
         var searchPattern = SearchPattern ?? "";
         _strategy = SearchStrategyFactory.Create(searchPattern, !MatchCase, WholeWords, UseRegex ? SearchMode.RegEx : SearchMode.Normal);
@@ -321,7 +308,7 @@ public class SearchReplacePanel : Control
                 _renderer.CurrentResults.Add(result);
             }
 
-            if (!_renderer.CurrentResults.Any())
+            if (_renderer.CurrentResults.Count == 0)
             {
                 _messageView.IsOpen = true;
                 _messageView.Content = Localization.NoMatchesFoundText;
@@ -383,8 +370,7 @@ public class SearchReplacePanel : Control
         var hasFocus = IsKeyboardFocusWithin;
 
         var layer = AdornerLayer.GetAdornerLayer(_textArea);
-        if (layer != null)
-            layer.Remove(_adorner);
+        layer?.Remove(_adorner);
         _messageView.IsOpen = false;
         _textArea.TextView.BackgroundRenderers.Remove(_renderer);
         if (hasFocus)
@@ -413,8 +399,7 @@ public class SearchReplacePanel : Control
     {
         if (!IsClosed) return;
         var layer = AdornerLayer.GetAdornerLayer(_textArea);
-        if (layer != null)
-            layer.Add(_adorner);
+        layer?.Add(_adorner);
         _textArea.TextView.BackgroundRenderers.Add(_renderer);
         IsClosed = false;
         DoSearch(false);
@@ -456,8 +441,7 @@ public class SearchReplacePanel : Control
     /// </summary>
     public static SearchReplacePanel Install(TextEditor editor)
     {
-        if (editor == null)
-            throw new ArgumentNullException(nameof(editor));
+        ArgumentNullException.ThrowIfNull(editor);
         return Install(editor.TextArea);
     }
 
@@ -466,8 +450,7 @@ public class SearchReplacePanel : Control
     /// </summary>
     public static SearchReplacePanel Install(TextArea textArea)
     {
-        if (textArea == null)
-            throw new ArgumentNullException(nameof(textArea));
+        ArgumentNullException.ThrowIfNull(textArea);
         var panel = new SearchReplacePanel { _textArea = textArea };
         panel.AttachInternal(textArea);
         panel._handler = new SearchReplaceInputHandler(textArea, panel);
@@ -622,38 +605,30 @@ public class SearchReplacePanel : Control
 /// <summary>
 /// EventArgs for <see cref="SearchReplacePanel.SearchOptionsChanged"/> event.
 /// </summary>
-public class SearchOptionsChangedEventArgs : EventArgs
+/// <remarks>
+/// Creates a new SearchOptionsChangedEventArgs instance.
+/// </remarks>
+public class SearchOptionsChangedEventArgs(string searchPattern, bool matchCase, bool useRegex, bool wholeWords) : EventArgs
 {
     /// <summary>
     /// Gets the search pattern.
     /// </summary>
-    public string SearchPattern { get; private set; }
+    public string SearchPattern { get; private set; } = searchPattern;
 
     /// <summary>
     /// Gets whether the search pattern should be interpreted case-sensitive.
     /// </summary>
-    public bool MatchCase { get; private set; }
+    public bool MatchCase { get; private set; } = matchCase;
 
     /// <summary>
     /// Gets whether the search pattern should be interpreted as regular expression.
     /// </summary>
-    public bool UseRegex { get; private set; }
+    public bool UseRegex { get; private set; } = useRegex;
 
     /// <summary>
     /// Gets whether the search pattern should only match whole words.
     /// </summary>
-    public bool WholeWords { get; private set; }
-
-    /// <summary>
-    /// Creates a new SearchOptionsChangedEventArgs instance.
-    /// </summary>
-    public SearchOptionsChangedEventArgs(string searchPattern, bool matchCase, bool useRegex, bool wholeWords)
-    {
-        SearchPattern = searchPattern;
-        MatchCase = matchCase;
-        UseRegex = useRegex;
-        WholeWords = wholeWords;
-    }
+    public bool WholeWords { get; private set; } = wholeWords;
 }
 
 class SearchReplacePanelAdorner : Adorner
@@ -671,7 +646,7 @@ class SearchReplacePanelAdorner : Adorner
 
     protected override Visual GetVisualChild(int index)
     {
-        if (index != 0) throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfNotEqual(index, 0);
         return _panel;
     }
 
@@ -687,7 +662,7 @@ class SearchReplaceResultBackgroundRenderer : IBackgroundRenderer
     private Brush _markerBrush;
     private Pen _markerPen;
 
-    public List<ISearchResult> CurrentResults { get; } = new List<ISearchResult>();
+    public List<ISearchResult> CurrentResults { get; } = [];
 
     public KnownLayer Layer => KnownLayer.Selection;
 
@@ -709,10 +684,8 @@ class SearchReplaceResultBackgroundRenderer : IBackgroundRenderer
 
     public void Draw(TextView textView, DrawingContext drawingContext)
     {
-        if (textView == null)
-            throw new ArgumentNullException(nameof(textView));
-        if (drawingContext == null)
-            throw new ArgumentNullException(nameof(drawingContext));
+        ArgumentNullException.ThrowIfNull(textView);
+        ArgumentNullException.ThrowIfNull(drawingContext);
 
         if (CurrentResults == null || !textView.VisualLinesValid)
             return;
@@ -745,16 +718,14 @@ class SearchReplaceResultBackgroundRenderer : IBackgroundRenderer
 public static class SearchCommandsEx
 {
     /// <summary>Replaces the next occurrence in the document.</summary>
-    public static readonly RoutedCommand ReplaceNext = new("ReplaceNext", typeof(SearchReplacePanel),
-        new InputGestureCollection
-        {
-            new KeyGesture(Key.R, ModifierKeys.Alt)
-        });
+    public static readonly RoutedCommand ReplaceNext = new("ReplaceNext", typeof(SearchReplacePanel), new InputGestureCollection
+    {
+        new KeyGesture(Key.R, ModifierKeys.Alt)
+    });
 
     /// <summary>Replaces all the occurrences in the document.</summary>
-    public static readonly RoutedCommand ReplaceAll = new("ReplaceAll", typeof(SearchReplacePanel),
-        new InputGestureCollection
-        {
-            new KeyGesture(Key.A, ModifierKeys.Alt)
-        });
+    public static readonly RoutedCommand ReplaceAll = new("ReplaceAll", typeof(SearchReplacePanel), new InputGestureCollection
+    {
+        new KeyGesture(Key.A, ModifierKeys.Alt)
+    });
 }

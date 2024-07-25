@@ -1,7 +1,4 @@
-﻿using System;
-using System.Windows;
-
-namespace RoslynPad.Editor;
+﻿namespace RoslynPad.Editor;
 
 public static class CommonEvent
 {

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-using System.Threading;
+﻿using System.Runtime.CompilerServices;
 
 namespace RoslynPad.Build;
 
@@ -21,10 +19,7 @@ public readonly struct NoContextYieldAwaitable
 
         private static void QueueContinuation(Action continuation, bool flowContext)
         {
-            if (continuation == null)
-            {
-                throw new ArgumentNullException(nameof(continuation));
-            }
+            ArgumentNullException.ThrowIfNull(continuation);
 
             if (flowContext)
             {

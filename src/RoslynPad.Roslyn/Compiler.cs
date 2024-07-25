@@ -1,50 +1,32 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
-using System.Linq;
-using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 
 namespace RoslynPad.Roslyn;
 
-internal sealed class Compiler
+internal sealed class Compiler(ImmutableList<SyntaxTree> syntaxTrees, CSharpParseOptions parseOptions,
+    OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
+    Platform platform = Platform.AnyCpu, IEnumerable<MetadataReference>? references = null,
+    IEnumerable<string>? usings = null, string? workingDirectory = null,
+    SourceReferenceResolver? sourceResolver = null,
+    OptimizationLevel optimizationLevel = OptimizationLevel.Debug,
+    bool checkOverflow = false, bool allowUnsafe = true)
 {
-    public Compiler(ImmutableList<SyntaxTree> syntaxTrees, CSharpParseOptions parseOptions,
-        OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
-        Platform platform = Platform.AnyCpu, IEnumerable<MetadataReference>? references = null,
-        IEnumerable<string>? usings = null, string? workingDirectory = null,
-        SourceReferenceResolver? sourceResolver = null,
-        OptimizationLevel optimizationLevel = OptimizationLevel.Debug,
-        bool checkOverflow = false, bool allowUnsafe = true)
-    {
-        OptimizationLevel = optimizationLevel;
-        CheckOverflow = checkOverflow;
-        AllowUnsafe = allowUnsafe;
-        SyntaxTrees = syntaxTrees;
-        OutputKind = outputKind;
-        Platform = platform;
-        ParseOptions = parseOptions;
-        References = references?.AsImmutable() ?? ImmutableArray<MetadataReference>.Empty;
-        Usings = usings?.AsImmutable() ?? ImmutableArray<string>.Empty;
-        SourceResolver = sourceResolver ??
+    public ImmutableList<SyntaxTree> SyntaxTrees { get; } = syntaxTrees;
+    public OutputKind OutputKind { get; } = outputKind;
+    public Platform Platform { get; } = platform;
+    public ImmutableArray<MetadataReference> References { get; } = references?.AsImmutable() ?? [];
+    public SourceReferenceResolver SourceResolver { get; } = sourceResolver ??
                          (workingDirectory != null
-                             ? new SourceFileResolver(ImmutableArray<string>.Empty, workingDirectory)
+                             ? new SourceFileResolver([], workingDirectory)
                              : SourceFileResolver.Default);
-    }
-
-    public ImmutableList<SyntaxTree> SyntaxTrees { get; }
-    public OutputKind OutputKind { get; }
-    public Platform Platform { get; }
-    public ImmutableArray<MetadataReference> References { get; }
-    public SourceReferenceResolver SourceResolver { get; }
-    public ImmutableArray<string> Usings { get; }
-    public CSharpParseOptions ParseOptions { get; }
-    public OptimizationLevel OptimizationLevel { get; }
-    public bool CheckOverflow { get; }
-    public bool AllowUnsafe { get; }
+    public ImmutableArray<string> Usings { get; } = usings?.AsImmutable() ?? [];
+    public CSharpParseOptions ParseOptions { get; } = parseOptions;
+    public OptimizationLevel OptimizationLevel { get; } = optimizationLevel;
+    public bool CheckOverflow { get; } = checkOverflow;
+    public bool AllowUnsafe { get; } = allowUnsafe;
 
     public ImmutableArray<Diagnostic> CompileAndSaveAssembly(string assemblyPath, CancellationToken cancellationToken = default)
     {
@@ -74,7 +56,7 @@ internal sealed class Compiler
         diagnostics.AddRange(emitResult.Diagnostics);
     }
 
-    private Compilation GetCompilationFromCode(string assemblyName)
+    private CSharpCompilation GetCompilationFromCode(string assemblyName)
     {
         var compilationOptions = new CSharpCompilationOptions(
             OutputKind,
@@ -104,7 +86,7 @@ internal sealed class Compiler
     {
         if (diagnostics.IsEmptyWithoutResolution)
         {
-            return ImmutableArray<Diagnostic>.Empty;
+            return [];
         }
 
         return diagnostics.AsEnumerable().Where(d =>

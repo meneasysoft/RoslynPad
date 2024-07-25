@@ -2,11 +2,7 @@
 using NuGet.Versioning;
 using RoslynPad.Build;
 using RoslynPad.UI;
-using System;
-using System.Collections.Generic;
 using System.Composition;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace RoslynPad;
@@ -15,8 +11,7 @@ namespace RoslynPad;
 internal class PlatformsFactory : IPlatformsFactory
 {
     IReadOnlyList<ExecutionPlatform>? _executionPlatforms;
-    private string? _dotnetExe;
-    private string? _sdkPath;
+    private (string dotnetExe, string sdkPath) _dotnetPaths;
 
     public IReadOnlyList<ExecutionPlatform> GetExecutionPlatforms() =>
         _executionPlatforms ??= GetNetVersions().Concat(GetNetFrameworkVersions()).ToArray().AsReadOnly();
@@ -51,55 +46,57 @@ internal class PlatformsFactory : IPlatformsFactory
 
     private IEnumerable<ExecutionPlatform> GetNetFrameworkVersions()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && RuntimeInformation.OSArchitecture == Architecture.X64)
         {
             var targetFrameworkName = GetNetFrameworkName();
-            yield return new ExecutionPlatform(".NET Framework x86", targetFrameworkName, null, Architecture.X86, isDotNet: false);
             yield return new ExecutionPlatform(".NET Framework x64", targetFrameworkName, null, Architecture.X64, isDotNet: false);
         }
     }
 
     private (string dotnetExe, string sdkPath) FindNetSdk()
     {
-        if (_dotnetExe != null && _sdkPath != null)
+        if (_dotnetPaths.dotnetExe is not null)
         {
-            return (_dotnetExe, _sdkPath);
+            return _dotnetPaths;
         }
 
-        string[] dotnetPaths;
-        string dotnetExe;
+        List<string> dotnetPaths = [];
+        if (Environment.GetEnvironmentVariable("DOTNET_ROOT") is var dotnetRoot && !string.IsNullOrEmpty(dotnetRoot))
+        {
+            dotnetPaths.Add(dotnetRoot);
+        }
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            dotnetPaths = new[] { Path.Combine(Environment.GetEnvironmentVariable("ProgramW6432")!, "dotnet") };
-            dotnetExe = "dotnet.exe";
+            dotnetPaths.Add(Path.Combine(Environment.GetEnvironmentVariable("ProgramW6432")!, "dotnet"));
         }
         else
         {
-            dotnetPaths = new[] { "/usr/lib64/dotnet", "/usr/share/dotnet", "/usr/local/share/dotnet", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet") };
-            dotnetExe = "dotnet";
+            dotnetPaths.AddRange([
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"),
+                "/usr/lib64/dotnet",
+                "/usr/share/dotnet",
+                "/usr/local/share/dotnet",
+            ]);
         }
 
-        var sdkPath = (from path in dotnetPaths
-                       let fullPath = Path.Combine(path, "sdk")
-                       where Directory.Exists(fullPath)
-                       select fullPath).FirstOrDefault();
+        var dotnetExe = GetDotnetExe();
+        var paths = (from path in dotnetPaths
+                     let exePath = Path.Combine(path, dotnetExe)
+                     let fullPath = Path.Combine(path, "sdk")
+                     where File.Exists(exePath) && Directory.Exists(fullPath)
+                     select (exePath, fullPath)).FirstOrDefault<(string exePath, string fullPath)>();
 
-        if (sdkPath != null)
+        if (paths.exePath is null)
         {
-            dotnetExe = Path.GetFullPath(Path.Combine(sdkPath, "..", dotnetExe));
-            if (File.Exists(dotnetExe))
-            {
-                _dotnetExe = dotnetExe;
-                _sdkPath = sdkPath;
-                return (dotnetExe, sdkPath);
-            }
+            paths = (string.Empty, string.Empty);
         }
 
-        _dotnetExe = string.Empty;
-        _sdkPath = string.Empty;
-
-        return (string.Empty, string.Empty);
+        _dotnetPaths = paths;
+        return paths;
     }
+
+    private static string GetDotnetExe() => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "dotnet.exe" : "dotnet";
 
     private static string GetNetFrameworkName()
     {

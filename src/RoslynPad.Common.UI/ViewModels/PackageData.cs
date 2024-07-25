@@ -1,10 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Collections.Immutable;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using RoslynPad.Roslyn.Completion.Providers;
+using RoslynPad.Utilities;
 
 namespace RoslynPad.UI;
 
@@ -45,6 +43,8 @@ public sealed class PackageData : INuGetPackage
         }
     }
 
+    public IDelegateCommand? InstallPackageCommand { get; internal set; }
+
     public PackageData(IPackageSearchMetadata package)
     {
         _package = package;
@@ -56,6 +56,6 @@ public sealed class PackageData : INuGetPackage
     {
         if (_package == null) return;
         var versions = await _package.GetVersionsAsync().ConfigureAwait(false);
-        OtherVersions = versions.Select(x => new PackageData(Id, x.Version)).OrderByDescending(x => x.Version).ToImmutableArray();
+        OtherVersions = [.. versions.Select(x => new PackageData(Id, x.Version)).OrderByDescending(x => x.Version)];
     }
 }

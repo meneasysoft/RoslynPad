@@ -1,9 +1,5 @@
-﻿using System;
-using System.Buffers;
+﻿using System.Buffers;
 using System.Diagnostics;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace RoslynPad.Build;
 
@@ -136,7 +132,7 @@ internal sealed class PooledByteBufferWriter : IBufferWriter<byte>, IDisposable
                 newSize = currentLength + sizeHint;
                 if ((uint)newSize > int.MaxValue)
                 {
-                    throw new OutOfMemoryException("BufferMaximumSizeExceeded: " + (uint)newSize);
+                    throw new InsufficientMemoryException("BufferMaximumSizeExceeded: " + (uint)newSize);
                 }
             }
 

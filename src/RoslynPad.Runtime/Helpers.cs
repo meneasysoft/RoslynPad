@@ -1,11 +1,7 @@
-﻿using System;
-using System.ComponentModel;
-using System.Linq;
+﻿using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace RoslynPad.Runtime;
 
@@ -33,7 +29,7 @@ public static class Helpers
         var dispatcherType = windowsBaseAssembly.GetType("System.Windows.Threading.Dispatcher", throwOnError: true) ?? throw new InvalidOperationException();
         var dispatcherSyncContextCtor = windowsBaseAssembly.GetType("System.Windows.Threading.DispatcherSynchronizationContext", throwOnError: true)!
             .GetConstructors().FirstOrDefault(c => c.GetParameters() is var p && p.Length == 1 && p[0].ParameterType.Name == "Dispatcher") ?? throw new InvalidOperationException();
-        var runMethod = dispatcherType.GetMethod("Run", Array.Empty<Type>())?.CreateDelegate(typeof(Action)) as Action ?? throw new InvalidOperationException();
+        var runMethod = dispatcherType.GetMethod("Run", [])?.CreateDelegate(typeof(Action)) as Action ?? throw new InvalidOperationException();
         var currentDispatcherProperty = dispatcherType.GetProperty("CurrentDispatcher") ?? throw new InvalidOperationException();
 
         var tcs = new TaskCompletionSource<object>();
@@ -84,23 +80,19 @@ public static class Helpers
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public readonly struct SynchronizationContextAwaitable
+    public readonly struct SynchronizationContextAwaitable(Task<SynchronizationContext> task)
     {
-        private readonly Task<SynchronizationContext> _task;
-
-        public SynchronizationContextAwaitable(Task<SynchronizationContext> task) => _task = task;
+        private readonly Task<SynchronizationContext> _task = task;
 
         public SynchronizationContextAwaiter GetAwaiter() => new(_task);
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public readonly struct SynchronizationContextAwaiter : INotifyCompletion
+    public readonly struct SynchronizationContextAwaiter(Task<SynchronizationContext> task) : INotifyCompletion
     {
         private static readonly SendOrPostCallback s_postCallback = state => ((Action)state!)();
 
-        private readonly Task<SynchronizationContext> _task;
-
-        public SynchronizationContextAwaiter(Task<SynchronizationContext> task) => _task = task;
+        private readonly Task<SynchronizationContext> _task = task;
 
         public bool IsCompleted => false;
 

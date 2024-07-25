@@ -1,9 +1,7 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.PickMembers;
 
@@ -69,7 +67,7 @@ internal class PickMembersDialogViewModel : NotificationObject
                 return string.Empty;
             }
 
-            return string.Format("Move {0} below {1}", MemberContainers[SelectedIndex.Value].MemberAutomationText, MemberContainers[SelectedIndex.Value - 1].MemberAutomationText);
+            return $"Move {MemberContainers[SelectedIndex.Value].MemberAutomationText} below {MemberContainers[SelectedIndex.Value - 1].MemberAutomationText}";
         }
     }
 
@@ -82,7 +80,7 @@ internal class PickMembersDialogViewModel : NotificationObject
                 return string.Empty;
             }
 
-            return string.Format("Move {0} below {1}", MemberContainers[SelectedIndex.Value].MemberAutomationText, MemberContainers[SelectedIndex.Value + 1].MemberAutomationText);
+            return $"Move {MemberContainers[SelectedIndex.Value].MemberAutomationText} below {MemberContainers[SelectedIndex.Value + 1].MemberAutomationText}";
         }
     }
 
@@ -143,23 +141,16 @@ internal class PickMembersDialogViewModel : NotificationObject
         SelectedIndex += delta;
     }
 
-    internal class MemberSymbolViewModel : NotificationObject
+    internal class MemberSymbolViewModel(ISymbol symbol) : NotificationObject
     {
-        public ISymbol MemberSymbol { get; }
+        public ISymbol MemberSymbol { get; } = symbol;
 
         private static readonly SymbolDisplayFormat s_memberDisplayFormat = new(
             genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
             parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeParamsRefOut | SymbolDisplayParameterOptions.IncludeOptionalBrackets,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
-
-        public MemberSymbolViewModel(ISymbol symbol)
-        {
-            MemberSymbol = symbol;
-            _isChecked = true;
-        }
-
-        private bool _isChecked;
+        private bool _isChecked = true;
         public bool IsChecked
         {
             get => _isChecked;

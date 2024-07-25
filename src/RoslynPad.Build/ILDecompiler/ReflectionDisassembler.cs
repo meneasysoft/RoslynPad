@@ -16,10 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Threading;
+using System.Globalization;
 using Mono.Cecil;
 using Mono.Collections.Generic;
 
@@ -28,19 +26,12 @@ namespace RoslynPad.Build.ILDecompiler;
 /// <summary>
 /// Disassembles type and member definitions.
 /// </summary>
-internal sealed class ReflectionDisassembler
+internal sealed class ReflectionDisassembler(ITextOutput output, bool detectControlStructure, CancellationToken cancellationToken)
 {
-    private readonly ITextOutput _output;
-    private readonly CancellationToken _cancellationToken;
+    private readonly ITextOutput _output = output ?? throw new ArgumentNullException(nameof(output));
+    private readonly CancellationToken _cancellationToken = cancellationToken;
     private bool _isInType; // whether we are currently disassembling a whole type (-> defaultCollapsed for foldings)
-    private readonly MethodBodyDisassembler _methodBodyDisassembler;
-
-    public ReflectionDisassembler(ITextOutput output, bool detectControlStructure, CancellationToken cancellationToken)
-    {
-        _output = output ?? throw new ArgumentNullException(nameof(output));
-        _cancellationToken = cancellationToken;
-        _methodBodyDisassembler = new MethodBodyDisassembler(output, detectControlStructure);
-    }
+    private readonly MethodBodyDisassembler _methodBodyDisassembler = new(output, detectControlStructure);
 
     #region Disassemble Method
 
@@ -182,7 +173,7 @@ internal sealed class ReflectionDisassembler
         }
 
         _output.Write(method.IsCompilerControlled
-            ? DisassemblerHelpers.Escape(method.Name + "$PST" + method.MetadataToken.ToInt32().ToString("X8"))
+            ? DisassemblerHelpers.Escape(method.Name + "$PST" + method.MetadataToken.ToInt32().ToString("X8", CultureInfo.InvariantCulture))
             : DisassemblerHelpers.Escape(method.Name));
 
         WriteTypeParameters(_output, method);
@@ -451,22 +442,21 @@ internal sealed class ReflectionDisassembler
             case NativeType.Func:
                 goto default; // ??
             case NativeType.Array:
-                var ami = marshalInfo as ArrayMarshalInfo;
-                if (ami == null)
+                if (marshalInfo is not ArrayMarshalInfo ami)
                     goto default;
                 if (ami.ElementType != NativeType.Max)
                     WriteNativeType(ami.ElementType);
                 _output.Write('[');
                 if (ami.SizeParameterMultiplier == 0)
                 {
-                    _output.Write(ami.Size.ToString());
+                    _output.Write(ami.Size.ToString(CultureInfo.InvariantCulture));
                 }
                 else
                 {
                     if (ami.Size >= 0)
-                        _output.Write(ami.Size.ToString());
+                        _output.Write(ami.Size.ToString(CultureInfo.InvariantCulture));
                     _output.Write(" + ");
-                    _output.Write(ami.SizeParameterIndex.ToString());
+                    _output.Write(ami.SizeParameterIndex.ToString(CultureInfo.InvariantCulture));
                 }
                 _output.Write(']');
                 break;
@@ -499,8 +489,7 @@ internal sealed class ReflectionDisassembler
                 break;
             case NativeType.SafeArray:
                 _output.Write("safearray ");
-                var sami = marshalInfo as SafeArrayMarshalInfo;
-                if (sami != null)
+                if (marshalInfo is SafeArrayMarshalInfo sami)
                 {
                     switch (sami.ElementType)
                     {
@@ -571,8 +560,7 @@ internal sealed class ReflectionDisassembler
                 break;
             case NativeType.FixedArray:
                 _output.Write("fixed array");
-                var fami = marshalInfo as FixedArrayMarshalInfo;
-                if (fami != null)
+                if (marshalInfo is FixedArrayMarshalInfo fami)
                 {
                     _output.Write("[{0}]", fami.Size);
                     if (fami.ElementType != NativeType.None)
@@ -601,8 +589,7 @@ internal sealed class ReflectionDisassembler
                 _output.Write("lpstruct");
                 break;
             case NativeType.CustomMarshaler:
-                var cmi = marshalInfo as CustomMarshalInfo;
-                if (cmi == null)
+                if (marshalInfo is not CustomMarshalInfo cmi)
                     goto default;
                 _output.Write("custom(\"{0}\", \"{1}\"",
                              TextWriterTokenWriter.ConvertString(cmi.ManagedType.FullName),
@@ -1072,7 +1059,7 @@ internal sealed class ReflectionDisassembler
             {
                 _output.Write(' ');
             }
-            _output.Write(blob[i].ToString("x2"));
+            _output.Write(blob[i].ToString("x2", CultureInfo.InvariantCulture));
         }
 
         _output.WriteLine();
@@ -1100,7 +1087,7 @@ internal sealed class ReflectionDisassembler
 
     private void WriteFlags<T>(T flags, EnumNameCollection<T> flagNames) where T : struct
     {
-        var val = Convert.ToInt64(flags);
+        var val = Convert.ToInt64(flags, CultureInfo.InvariantCulture);
         long tested = 0;
         foreach (var pair in flagNames)
         {
@@ -1117,7 +1104,7 @@ internal sealed class ReflectionDisassembler
 
     private void WriteEnum<T>(T enumValue, EnumNameCollection<T> enumNames) where T : struct
     {
-        var val = Convert.ToInt64(enumValue);
+        var val = Convert.ToInt64(enumValue, CultureInfo.InvariantCulture);
         foreach (var pair in enumNames)
         {
             if (pair.Key == val)
@@ -1140,11 +1127,11 @@ internal sealed class ReflectionDisassembler
 
     private sealed class EnumNameCollection<T> : IEnumerable<KeyValuePair<long, string?>> where T : struct
     {
-        private readonly List<KeyValuePair<long, string?>> _names = new();
+        private readonly List<KeyValuePair<long, string?>> _names = [];
 
         public void Add(T flag, string? name)
         {
-            _names.Add(new KeyValuePair<long, string?>(Convert.ToInt64(flag), name));
+            _names.Add(new KeyValuePair<long, string?>(Convert.ToInt64(flag, CultureInfo.InvariantCulture), name));
         }
 
         public IEnumerator<KeyValuePair<long, string?>> GetEnumerator()

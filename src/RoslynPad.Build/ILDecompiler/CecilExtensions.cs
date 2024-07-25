@@ -16,9 +16,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -170,8 +167,7 @@ internal static class CecilExtensions
     /// </summary>
     public static int GetEndOffset(this Instruction inst)
     {
-        if (inst == null)
-            throw new ArgumentNullException(nameof(inst));
+        ArgumentNullException.ThrowIfNull(inst);
         return inst.Offset + inst.GetSize();
     }
 
@@ -231,9 +227,7 @@ internal static class CecilExtensions
     [Obsolete("throwing exceptions is considered a bug")]
     public static TypeDefinition ResolveOrThrow(this TypeReference typeReference)
     {
-        var resolved = typeReference.Resolve();
-        if (resolved == null)
-            throw new Exception("ReferenceResolving");
+        var resolved = typeReference.Resolve() ?? throw new InvalidOperationException("ReferenceResolving");
         return resolved;
     }
 
@@ -289,7 +283,7 @@ internal static class CecilExtensions
 
     public static bool HasGeneratedName(this MemberReference member)
     {
-        return member.Name.StartsWith("<", StringComparison.Ordinal);
+        return member.Name.StartsWith('<');
     }
 
     public static bool ContainsAnonymousType(this TypeReference type)

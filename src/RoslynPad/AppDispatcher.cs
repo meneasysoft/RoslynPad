@@ -1,7 +1,4 @@
-﻿using System;
-using System.Composition;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Composition;
 using System.Windows.Threading;
 using RoslynPad.UI;
 
@@ -29,16 +26,12 @@ public class AppDispatcher : DispatcherObject, IAppDispatcher
 
     private DispatcherPriority ConvertPriority(AppDispatcherPriority priority)
     {
-        switch (priority)
+        return priority switch
         {
-            case AppDispatcherPriority.Normal:
-                return DispatcherPriority.Normal;
-            case AppDispatcherPriority.High:
-                return DispatcherPriority.Send;
-            case AppDispatcherPriority.Low:
-                return DispatcherPriority.Background;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(priority), priority, null);
-        }
+            AppDispatcherPriority.Normal => DispatcherPriority.Normal,
+            AppDispatcherPriority.High => DispatcherPriority.Send,
+            AppDispatcherPriority.Low => DispatcherPriority.Background,
+            _ => throw new ArgumentOutOfRangeException(nameof(priority), priority, null),
+        };
     }
 }

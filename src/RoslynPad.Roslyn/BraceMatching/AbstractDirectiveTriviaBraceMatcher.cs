@@ -1,8 +1,5 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
@@ -26,8 +23,7 @@ internal abstract class AbstractDirectiveTriviaBraceMatcher<TDirectiveTriviaSynt
         var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
         var token = root!.FindToken(position, findInsideTrivia: true);
 
-        var directive = token.Parent as TDirectiveTriviaSyntax;
-        if (directive == null)
+        if (token.Parent is not TDirectiveTriviaSyntax directive)
         {
             return null;
         }

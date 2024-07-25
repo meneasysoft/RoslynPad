@@ -1,5 +1,4 @@
-﻿using System;
-using System.Composition;
+﻿using System.Composition;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeActions.WorkspaceServices;
@@ -19,18 +18,12 @@ internal sealed class SymbolRenamedCodeActionOperationFactory : ISymbolRenamedCo
             newName ?? throw new ArgumentNullException(nameof(newName)));
     }
 
-    private class RenameSymbolOperation : CodeActionOperation
+    private class RenameSymbolOperation(
+        ISymbol symbol,
+        string newName) : CodeActionOperation
     {
-        private readonly ISymbol _symbol;
-        private readonly string _newName;
-
-        public RenameSymbolOperation(
-            ISymbol symbol,
-            string newName)
-        {
-            _symbol = symbol;
-            _newName = newName;
-        }
+        private readonly ISymbol _symbol = symbol;
+        private readonly string _newName = newName;
 
         public override string Title => $"Rename {_symbol.Name} to {_newName}";
     }

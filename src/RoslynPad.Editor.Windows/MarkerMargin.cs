@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Media;
-using ICSharpCode.AvalonEdit.Editing;
-using ICSharpCode.AvalonEdit.Rendering;
+﻿using System.Collections;
 
 namespace RoslynPad.Editor;
 
@@ -16,7 +9,7 @@ public class MarkerMargin : AbstractMargin
         Marker = CreateMarker();
     }
 
-    private FrameworkElement CreateMarker()
+    private Image CreateMarker()
     {
         var marker = new Image();
         marker.MouseDown += (o, e) => { e.Handled = true; MarkerPointerDown?.Invoke(o, e); };
@@ -40,7 +33,7 @@ public class MarkerMargin : AbstractMargin
 
     protected override Visual GetVisualChild(int index)
     {
-        if (index != 0) throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfNotEqual(index, 0);
         return Marker;
     }
 

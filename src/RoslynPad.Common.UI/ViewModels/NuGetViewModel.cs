@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Composition;
-using System.Linq;
 using System.Runtime.ExceptionServices;
-using System.Threading;
-using System.Threading.Tasks;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Credentials;
@@ -102,7 +97,7 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
             {
                 var match = result.FirstOrDefault(c => string.Equals(c.Identity.Id, searchTerm,
                     StringComparison.OrdinalIgnoreCase));
-                result = match != null ? new[] { match } : null;
+                result = match != null ? [match] : null;
             }
 
             if (result?.Length > 0)
@@ -137,8 +132,7 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
         {
             PackageSourceProvider = packageSourceProvider;
 
-            _resourceProviders = new List<Lazy<INuGetResourceProvider>>();
-            _resourceProviders.AddRange(Repository.Provider.GetCoreV3());
+            _resourceProviders = [.. Repository.Provider.GetCoreV3()];
 
             // Create repositories
             _repositories = PackageSourceProvider.LoadPackageSources()

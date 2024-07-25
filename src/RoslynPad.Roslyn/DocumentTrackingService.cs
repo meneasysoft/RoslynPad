@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
@@ -9,22 +8,17 @@ namespace RoslynPad.Roslyn;
 [ExportWorkspaceServiceFactory(typeof(IDocumentTrackingService), ServiceLayer.Host)]
 internal sealed class DocumentTrackingServiceFactory : IWorkspaceServiceFactory
 {
-    private class DocumentTrackingService : IDocumentTrackingService
+    private class DocumentTrackingService(Workspace workspace) : IDocumentTrackingService
     {
-        private readonly RoslynWorkspace _workspace;
+        private readonly RoslynWorkspace _workspace = (RoslynWorkspace)workspace;
 
         public bool SupportsDocumentTracking => true;
-
-        public DocumentTrackingService(Workspace workspace)
-        {
-            _workspace = (RoslynWorkspace)workspace;
-        }
 
         public DocumentId GetActiveDocument() => _workspace.OpenDocumentId ?? throw new InvalidOperationException("No active document");
 
         public DocumentId? TryGetActiveDocument() => _workspace.OpenDocumentId;
 
-        public ImmutableArray<DocumentId> GetVisibleDocuments() => _workspace.OpenDocumentId != null ? ImmutableArray.Create(_workspace.OpenDocumentId) : ImmutableArray<DocumentId>.Empty;
+        public ImmutableArray<DocumentId> GetVisibleDocuments() => _workspace.OpenDocumentId != null ? [_workspace.OpenDocumentId] : ImmutableArray<DocumentId>.Empty;
 
         public event EventHandler<DocumentId?>? ActiveDocumentChanged = delegate { };
 

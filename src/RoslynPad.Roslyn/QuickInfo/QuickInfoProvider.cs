@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.DocumentationComments;
@@ -17,15 +12,10 @@ using Roslyn.Utilities;
 namespace RoslynPad.Roslyn.QuickInfo;
 
 [Export(typeof(IQuickInfoProvider)), Shared]
-internal sealed class QuickInfoProvider : IQuickInfoProvider
+[method: ImportingConstructor]
+internal sealed class QuickInfoProvider(IDeferredQuickInfoContentProvider contentProvider) : IQuickInfoProvider
 {
-    private readonly IDeferredQuickInfoContentProvider _contentProvider;
-
-    [ImportingConstructor]
-    public QuickInfoProvider(IDeferredQuickInfoContentProvider contentProvider)
-    {
-        _contentProvider = contentProvider;
-    }
+    private readonly IDeferredQuickInfoContentProvider _contentProvider = contentProvider;
 
     public async Task<QuickInfoItem?> GetItemAsync(
         Document document,
@@ -142,10 +132,7 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         var bestBinding = candidateResults.FirstOrDefault(c => c.Item3.Count > 0 && !ErrorVisitor.ContainsError(c.Item3.First()));
 
         // Every file binds with errors. Take the first candidate, which is from the current file.
-        if (bestBinding == null)
-        {
-            bestBinding = candidateResults.First();
-        }
+        bestBinding ??= candidateResults.First();
 
         if (bestBinding.Item3 == null || !bestBinding.Item3.Any())
         {
@@ -201,15 +188,14 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         var sections = await descriptionService.ToDescriptionGroupsAsync(semanticModel, token.SpanStart, symbols.AsImmutable(), SymbolDescriptionOptions.Default, cancellationToken).ConfigureAwait(false);
 
         var mainDescriptionBuilder = new List<TaggedText>();
-        if (sections.ContainsKey(SymbolDescriptionGroups.MainDescription))
+        if (sections.TryGetValue(SymbolDescriptionGroups.MainDescription, out var value))
         {
-            mainDescriptionBuilder.AddRange(sections[SymbolDescriptionGroups.MainDescription]);
+            mainDescriptionBuilder.AddRange(value);
         }
 
         var typeParameterMapBuilder = new List<TaggedText>();
-        if (sections.ContainsKey(SymbolDescriptionGroups.TypeParameterMap))
+        if (sections.TryGetValue(SymbolDescriptionGroups.TypeParameterMap, out var parts))
         {
-            var parts = sections[SymbolDescriptionGroups.TypeParameterMap];
             if (!parts.IsDefaultOrEmpty)
             {
                 typeParameterMapBuilder.AddLineBreak();
@@ -218,9 +204,8 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         }
 
         var structuralTypesBuilder = new List<TaggedText>();
-        if (sections.ContainsKey(SymbolDescriptionGroups.StructuralTypes))
+        if (sections.TryGetValue(SymbolDescriptionGroups.StructuralTypes, out parts))
         {
-            var parts = sections[SymbolDescriptionGroups.StructuralTypes];
             if (!parts.IsDefaultOrEmpty)
             {
                 structuralTypesBuilder.AddLineBreak();
@@ -229,9 +214,8 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         }
 
         var usageTextBuilder = new List<TaggedText>();
-        if (sections.ContainsKey(SymbolDescriptionGroups.AwaitableUsageText))
+        if (sections.TryGetValue(SymbolDescriptionGroups.AwaitableUsageText, out parts))
         {
-            var parts = sections[SymbolDescriptionGroups.AwaitableUsageText];
             if (!parts.IsDefaultOrEmpty)
             {
                 usageTextBuilder.AddRange(parts);
@@ -244,9 +228,8 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         }
 
         var exceptionsTextBuilder = new List<TaggedText>();
-        if (sections.ContainsKey(SymbolDescriptionGroups.Exceptions))
+        if (sections.TryGetValue(SymbolDescriptionGroups.Exceptions, out parts))
         {
-            var parts = sections[SymbolDescriptionGroups.Exceptions];
             if (!parts.IsDefaultOrEmpty)
             {
                 exceptionsTextBuilder.AddRange(parts);
@@ -260,7 +243,7 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         var showSymbolGlyph = true;
 
         if (workspace.Services.GetLanguageServices(semanticModel.Language).GetRequiredService<ISyntaxFactsService>().IsAwaitKeyword(token) &&
-            (symbols.First() as INamedTypeSymbol)?.SpecialType == SpecialType.System_Void)
+            symbols.First() is INamedTypeSymbol { SpecialType: SpecialType.System_Void })
         {
             documentationContent = _contentProvider.CreateDocumentationCommentDeferredContent(null);
             showSymbolGlyph = false;
@@ -287,10 +270,10 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
         ISyntaxFactsService syntaxFactsService,
         CancellationToken cancellationToken)
     {
-        if (sections.ContainsKey(SymbolDescriptionGroups.Documentation))
+        if (sections.TryGetValue(SymbolDescriptionGroups.Documentation, out var value))
         {
             var documentationBuilder = new List<TaggedText>();
-            documentationBuilder.AddRange(sections[SymbolDescriptionGroups.Documentation]);
+            documentationBuilder.AddRange(value);
             return _contentProvider.CreateClassifiableDeferredContent(documentationBuilder);
         }
         if (symbols.Any())
@@ -339,10 +322,9 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
 
             if (symbols.Any())
             {
-                var typeParameter = symbols.First() as ITypeParameterSymbol;
                 return new ValueTuple<SemanticModel, IList<ISymbol>>(
                     semanticModel,
-                    typeParameter != null && typeParameter.TypeParameterKind == TypeParameterKind.Cref
+                    symbols.First() is ITypeParameterSymbol typeParameter && typeParameter.TypeParameterKind == TypeParameterKind.Cref
                         ? SpecializedCollections.EmptyList<ISymbol>()
                         : symbols.ToList());
             }
@@ -375,11 +357,11 @@ internal sealed class QuickInfoProvider : IQuickInfoProvider
 
     private class ErrorVisitor : SymbolVisitor<bool>
     {
-        private static readonly ErrorVisitor _instance = new();
+        private static readonly ErrorVisitor s_instance = new();
 
         public static bool ContainsError(ISymbol symbol)
         {
-            return _instance.Visit(symbol);
+            return s_instance.Visit(symbol);
         }
 
         public override bool DefaultVisit(ISymbol symbol)

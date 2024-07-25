@@ -1,8 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-
-namespace RoslynPad.UI;
+﻿namespace RoslynPad.UI;
 
 public abstract class TelemetryProviderBase : ITelemetryProvider
 {

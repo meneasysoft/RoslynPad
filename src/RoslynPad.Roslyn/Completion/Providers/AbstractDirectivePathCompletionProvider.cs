@@ -1,9 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System;
 using System.Collections.Immutable;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
@@ -18,8 +15,8 @@ namespace RoslynPad.Roslyn.Completion.Providers;
 internal abstract class AbstractDirectivePathCompletionProvider : CompletionProvider
 {
     private static readonly char[] s_separators = PathUtilities.IsUnixLikePlatform
-        ? new[] { '/', ',' }
-        : new[] { '/', ',', '\\' };
+        ? ['/', ',']
+        : ['/', ',', '\\'];
 
     protected abstract bool TryGetStringLiteralToken(SyntaxTree tree, int position, out SyntaxToken stringLiteral, CancellationToken cancellationToken);
 
@@ -144,7 +141,7 @@ internal abstract class AbstractDirectivePathCompletionProvider : CompletionProv
         }
         else
         {
-            referenceSearchPaths = ImmutableArray<string>.Empty;
+            referenceSearchPaths = [];
             baseDirectory = null;
         }
 

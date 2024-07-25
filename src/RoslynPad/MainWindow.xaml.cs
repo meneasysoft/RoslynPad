@@ -1,17 +1,18 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Composition.Hosting;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Xml.Linq;
 using Avalon.Windows.Controls;
 using AvalonDock;
+using AvalonDock.Controls;
 using AvalonDock.Layout.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RoslynPad.Themes;
 using RoslynPad.UI;
 
 namespace RoslynPad;
@@ -21,31 +22,74 @@ namespace RoslynPad;
 /// </summary>
 public partial class MainWindow
 {
-    private readonly MainViewModelBase _viewModel;
+    private readonly MainViewModel _viewModel;
     private bool _isClosing;
     private bool _isClosed;
+    private ThemeDictionary? _themeDictionary;
 
     public MainWindow()
     {
         Loaded += OnLoaded;
 
         var services = new ServiceCollection();
-        services.AddLogging(l => l.AddSimpleConsole().AddDebug());
+        services.AddLogging(l =>
+        {
+#if DEBUG
+            l.AddDebug();
+#endif
+        });
 
         var container = new ContainerConfiguration()
             .WithProvider(new ServiceCollectionExportDescriptorProvider(services))
-            .WithAssembly(typeof(MainViewModelBase).Assembly)   // RoslynPad.Common.UI
-            .WithAssembly(typeof(MainWindow).Assembly);         // RoslynPad
-        var locator = container.CreateContainer().GetExport<IServiceProvider>();
+            .WithAssembly(typeof(MainViewModel).Assembly)   // RoslynPad.Common.UI
+            .WithAssembly(typeof(MainWindow).Assembly);     // RoslynPad
+        var serviceProvider = container.CreateContainer().GetExport<IServiceProvider>();
 
-        _viewModel = locator.GetRequiredService<MainViewModelBase>();
+        _viewModel = serviceProvider.GetRequiredService<MainViewModel>();
+        _viewModel.ThemeChanged += OnViewModelThemeChanged;
+        _viewModel.InitializeTheme();
 
         DataContext = _viewModel;
         InitializeComponent();
         DocumentsPane.ToggleAutoHide();
-
+        SetDockTheme(_viewModel.Theme);
         LoadWindowLayout();
         LoadDockLayout();
+    }
+
+    private bool IsDark => _viewModel.ThemeType == ThemeType.Dark;
+
+    private void OnViewModelThemeChanged(object? sender, EventArgs e)
+    {
+        var app = Application.Current;
+        if (_themeDictionary is not null)
+        {
+            app.Resources.MergedDictionaries.Remove(_themeDictionary);
+        }
+
+        _themeDictionary = new ThemeDictionary(_viewModel.Theme);
+        app.Resources.MergedDictionaries.Add(_themeDictionary);
+
+        SetDockTheme(_viewModel.Theme);
+        this.UseImmersiveDarkMode(IsDark);
+    }
+
+    private void SetDockTheme(Theme theme)
+    {
+        if (DockingManager is null)
+        {
+            return;
+        }
+
+        DockingManager.Theme = IsDark ? new AvalonDock.Themes.Vs2013DarkTheme() : new AvalonDock.Themes.Vs2013LightTheme();
+        DockingManager.Resources.MergedDictionaries.Add(new DockThemeDictionary(theme));
+        DockingManager.DocumentPaneControlStyle = new Style(typeof(LayoutDocumentPaneControl), DockingManager.DocumentPaneControlStyle)
+        {
+            Setters =
+            {
+                new Setter(ItemsControl.ItemContainerStyleProperty, DockingManager.TryFindResource("DocumentPaneControlTabStyle"))
+            }
+        };
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
@@ -63,7 +107,7 @@ public partial class MainWindow
         {
             SaveDockLayout();
             SaveWindowLayout();
-            
+
             _isClosing = true;
             IsEnabled = false;
             e.Cancel = true;
@@ -89,6 +133,7 @@ public partial class MainWindow
     private void LoadWindowLayout()
     {
         var boundsString = _viewModel.Settings.WindowBounds;
+
         if (!string.IsNullOrEmpty(boundsString))
         {
             try
@@ -117,6 +162,11 @@ public partial class MainWindow
         {
             FontSize = _viewModel.Settings.WindowFontSize.Value;
         }
+
+        Width = Math.Clamp(Width, 0, SystemParameters.VirtualScreenWidth);
+        Height = Math.Clamp(Height, 0, SystemParameters.VirtualScreenHeight);
+        Left = Math.Clamp(Left, SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenWidth - Width);
+        Top = Math.Clamp(Top, SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenHeight - Height);
     }
 
     private void SaveWindowLayout()
@@ -160,7 +210,7 @@ public partial class MainWindow
 
         Application.Current.Shutdown();
     }
-    
+
     private async void DockingManager_OnDocumentClosing(object? sender, DocumentClosingEventArgs e)
     {
         e.Cancel = true;
@@ -172,12 +222,42 @@ public partial class MainWindow
     {
         if (_viewModel.LastError == null) return;
 
-        TaskDialog.ShowInline(this, "Unhandled Exception",
-            _viewModel.LastError.ToString(), string.Empty, TaskDialogButtons.Close);
+        var taskDialog = new TaskDialog
+        {
+            Header = "Unhandled Exception",
+            Content = _viewModel.LastError.ToString(),
+            Buttons =
+            {
+                TaskDialogButtonData.FromStandardButtons(TaskDialogButtons.Close).First()
+            }
+        };
+
+        taskDialog.SetResourceReference(BackgroundProperty, SystemColors.WindowBrushKey);
+        taskDialog.ShowInline(this);
     }
 
     private void ViewUpdateClick(object? sender, RoutedEventArgs e)
     {
         _ = Task.Run(() => Process.Start(new ProcessStartInfo("https://roslynpad.net/") { UseShellExecute = true }));
+    }
+
+    private void ILViewer_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        SetShowIL();
+    }
+
+    private void DockingManager_ActiveContentChanged(object sender, EventArgs e)
+    {
+        SetShowIL();
+    }
+
+    private void SetShowIL()
+    {
+        if (_viewModel.CurrentOpenDocument is not { } currentDocument)
+        {
+            return;
+        }
+
+        currentDocument.ShowIL = ILViewer.IsVisible;
     }
 }

@@ -1,12 +1,7 @@
-﻿using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Media;
-using Avalonia.Threading;
+﻿using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
-using System;
-using System.Collections.Generic;
+
+#pragma warning disable IDE0060 // Remove unused parameter
 
 namespace RoslynPad.Editor;
 
@@ -17,7 +12,7 @@ internal static class AvaloniaExtensions
     {
         Control? result = control;
 
-        while (result != null && !(result is T))
+        while (result != null && result is not T)
         {
             result = result.Parent as Control;
         }

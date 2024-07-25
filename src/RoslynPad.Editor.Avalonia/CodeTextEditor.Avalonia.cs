@@ -1,9 +1,4 @@
-﻿using Avalonia;
-using Avalonia.Controls;
-using AvaloniaEdit;
-using System;
-
-namespace RoslynPad.Editor;
+﻿namespace RoslynPad.Editor;
 
 public partial class CodeTextEditor
 {
@@ -36,14 +31,5 @@ public partial class CodeTextEditor
     partial void AfterToolTipOpen()
     {
         _toolTip?.InvalidateVisual();
-    }
-
-    partial class CustomCompletionWindow
-    {
-        partial void Initialize()
-        {
-            CompletionList.ListBox.BorderThickness = new Thickness(1);
-            CompletionList.ListBox.PointerPressed += (o, e) => _isSoftSelectionActive = false;
-        }
     }
 }

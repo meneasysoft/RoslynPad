@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Composition;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Composition;
+using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp;
@@ -12,21 +7,16 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace RoslynPad.Roslyn.Completion.Providers;
 
 [ExportCompletionProvider("ReferenceDirectiveCompletionProvider", LanguageNames.CSharp)]
-internal class ReferenceDirectiveCompletionProvider : AbstractReferenceDirectiveCompletionProvider
+[method: ImportingConstructor]
+internal class ReferenceDirectiveCompletionProvider([Import(AllowDefault = true)] INuGetCompletionProvider nuGetCompletionProvider) : AbstractReferenceDirectiveCompletionProvider
 {
     private static readonly CompletionItemRules s_rules = CompletionItemRules.Create(
-        filterCharacterRules: ImmutableArray<CharacterSetModificationRule>.Empty,
-        commitCharacterRules: ImmutableArray<CharacterSetModificationRule>.Empty,
+        filterCharacterRules: [],
+        commitCharacterRules: [],
         enterKeyRule: EnterKeyRule.Never,
         selectionBehavior: CompletionItemSelectionBehavior.SoftSelection);
 
-    private readonly INuGetCompletionProvider _nuGetCompletionProvider;
-
-    [ImportingConstructor]
-    public ReferenceDirectiveCompletionProvider([Import(AllowDefault = true)] INuGetCompletionProvider nuGetCompletionProvider)
-    {
-        _nuGetCompletionProvider = nuGetCompletionProvider;
-    }
+    private readonly INuGetCompletionProvider _nuGetCompletionProvider = nuGetCompletionProvider;
 
     private CompletionItem CreateNuGetRoot()
         => CommonCompletionItem.Create(
@@ -74,7 +64,7 @@ internal class ReferenceDirectiveCompletionProvider : AbstractReferenceDirective
                         "",
                         s_rules,
                         Microsoft.CodeAnalysis.Glyph.NuGet,
-                        sortText: i.ToString("0000"))));
+                        sortText: i.ToString("0000", CultureInfo.InvariantCulture))));
             }
         }
         else
@@ -85,7 +75,7 @@ internal class ReferenceDirectiveCompletionProvider : AbstractReferenceDirective
                      "",
                     s_rules,
                     Microsoft.CodeAnalysis.Glyph.NuGet,
-                    sortText: i.ToString("0000"))));
+                    sortText: i.ToString("0000", CultureInfo.InvariantCulture))));
         }
     }
 

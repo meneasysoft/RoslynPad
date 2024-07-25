@@ -1,9 +1,5 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Glyph = RoslynPad.Roslyn.Completion.Glyph;
 
@@ -43,7 +39,7 @@ internal class ExtractInterfaceDialogViewModel : NotificationObject
         _generatedNameTypeParameterSuffix = generatedNameTypeParameterSuffix;
         _languageName = languageName;
 
-        MemberContainers = extractableMembers.Select(m => new MemberSymbolViewModel(m)).OrderBy(s => s.MemberName).ToList();
+        MemberContainers = [.. extractableMembers.Select(m => new MemberSymbolViewModel(m)).OrderBy(s => s.MemberName)];
     }
 
     internal bool TrySubmit()
@@ -150,23 +146,16 @@ internal class ExtractInterfaceDialogViewModel : NotificationObject
         set => SetProperty(ref _fileName, value);
     }
 
-    internal class MemberSymbolViewModel : NotificationObject
+    internal class MemberSymbolViewModel(ISymbol symbol) : NotificationObject
     {
-        public ISymbol MemberSymbol { get; }
+        public ISymbol MemberSymbol { get; } = symbol;
 
         private static readonly SymbolDisplayFormat s_memberDisplayFormat = new(
             genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
             parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeParamsRefOut | SymbolDisplayParameterOptions.IncludeOptionalBrackets,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
-
-        public MemberSymbolViewModel(ISymbol symbol)
-        {
-            MemberSymbol = symbol;
-            _isChecked = true;
-        }
-
-        private bool _isChecked;
+        private bool _isChecked = true;
         public bool IsChecked
         {
             get => _isChecked;

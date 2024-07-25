@@ -16,10 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Mono.Cecil.Cil;
 
 namespace RoslynPad.Build.ILDecompiler;
@@ -81,7 +78,7 @@ internal class ILStructure
     /// <summary>
     /// The list of child structures.
     /// </summary>
-    public readonly List<ILStructure> Children = new();
+    public readonly List<ILStructure> Children = [];
 
     public ILStructure(MethodBody body)
         : this(ILStructureType.Root, 0, body.CodeSize)
@@ -142,19 +139,12 @@ internal class ILStructure
     {
         if (opcode.OpCodeType == OpCodeType.Prefix)
             return false;
-        switch (opcode.FlowControl)
+        return opcode.FlowControl switch
         {
-            case FlowControl.Branch:
-            case FlowControl.Throw:
-            case FlowControl.Return:
-                return true;
-            case FlowControl.Next:
-            case FlowControl.Call:
-            case FlowControl.Cond_Branch:
-                return false;
-            default:
-                throw new NotSupportedException(opcode.FlowControl.ToString());
-        }
+            FlowControl.Branch or FlowControl.Throw or FlowControl.Return => true,
+            FlowControl.Next or FlowControl.Call or FlowControl.Cond_Branch => false,
+            _ => throw new NotSupportedException(opcode.FlowControl.ToString()),
+        };
     }
 
     public ILStructure(ILStructureType type, int startOffset, int endOffset, ExceptionHandler? handler = null)

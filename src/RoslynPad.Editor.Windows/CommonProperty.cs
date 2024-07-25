@@ -1,7 +1,4 @@
-﻿using System;
-using System.Windows;
-
-namespace RoslynPad.Editor;
+﻿namespace RoslynPad.Editor;
 
 public static class CommonProperty
 {
@@ -57,15 +54,12 @@ public static class CommonProperty
     }
 }
 
-public sealed class StyledProperty<TValue>
+public sealed class StyledProperty<TValue>(DependencyProperty property)
 {
-    public DependencyProperty Property { get; }
+    public DependencyProperty Property { get; } = property;
 
-    public StyledProperty(DependencyProperty property)
-    {
-        Property = property;
-    }
-
+    public static implicit operator DependencyProperty(StyledProperty<TValue> property) => property.Property;
+        
     public StyledProperty<TValue> AddOwner<TOwner>() =>
         new(Property.AddOwner(typeof(TOwner)));
 

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
 
 namespace RoslynPad.Build;
 
@@ -8,15 +6,23 @@ internal static class MSBuildHelper
 {
     public const string ReferencesFile = "references.txt";
     public const string AnalyzersFile = "analyzers.txt";
+    private const string Sdk = "Microsoft.NET.Sdk";
 
-    public static XDocument CreateCsproj(bool isDotNet, string targetFramework, IEnumerable<LibraryRef> references) =>
+    public static XDocument CreateCsxCsproj(bool isDotNet, string targetFramework, IEnumerable<LibraryRef> references) =>
         new(new XElement("Project",
-                ImportSdkProject("Microsoft.NET.Sdk", "Sdk.props"),
-                BuildProperties(targetFramework),
-                References(references),
-                ReferenceAssemblies(isDotNet),
-                ImportSdkProject("Microsoft.NET.Sdk", "Sdk.targets"),
-                CoreCompileTarget()));
+            ImportSdkProject(Sdk, "Sdk.props"),
+            BuildProperties(targetFramework, copyBuildOutput: false),
+            Reference(references),
+            ReferenceAssemblies(isDotNet),
+            ImportSdkProject(Sdk, "Sdk.targets"),
+            CoreCompileTarget()));
+
+    public static XDocument CreateCsproj(string targetFramework, IEnumerable<LibraryRef> referenceItems, IEnumerable<string> usingItems) =>
+       new(new XElement("Project",
+            new XAttribute("Sdk", Sdk),
+            BuildProperties(targetFramework, copyBuildOutput: true),
+            Reference(referenceItems),
+            Using(usingItems)));
 
     private static XElement ReferenceAssemblies(bool isDotNet) =>
         isDotNet ? new XElement("ItemGroup") : new XElement("ItemGroup",
@@ -24,9 +30,9 @@ internal static class MSBuildHelper
                 new XAttribute("Include", "Microsoft.NETFramework.ReferenceAssemblies"),
                 new XAttribute("Version", "*")));
 
-    private static XElement References(IEnumerable<LibraryRef> references) =>
+    private static XElement Reference(IEnumerable<LibraryRef> referenceItems) =>
         new("ItemGroup",
-            references.Select(Reference).ToArray());
+            referenceItems.Select(Reference).ToArray());
 
     private static XElement Reference(LibraryRef reference)
     {
@@ -41,15 +47,27 @@ internal static class MSBuildHelper
         return element;
     }
 
-    private static XElement BuildProperties(string targetFramework) =>
+    private static XElement Compile(IEnumerable<string> compileItems) =>
+        new("ItemGroup",
+            compileItems.Select(c => new XElement("Compile", new XAttribute("Include", c))));
+
+    private static XElement Using(IEnumerable<string> usingItems) =>
+        new("ItemGroup",
+            usingItems.Select(c => new XElement("Using", new XAttribute("Include", c))));
+
+    private static XElement BuildProperties(string targetFramework, bool copyBuildOutput) =>
         new("PropertyGroup",
             new XElement("TargetFramework", targetFramework),
             new XElement("OutputType", "Exe"),
             new XElement("OutputPath", "bin"),
             new XElement("UseAppHost", false),
+            new XElement("AllowUnsafeBlocks", true),
+            new XElement("LangVersion", "preview"),
+            new XElement("Nullable", "enable"),
             new XElement("AppendTargetFrameworkToOutputPath", false),
             new XElement("AppendRuntimeIdentifierToOutputPath", false),
-            new XElement("CopyBuildOutputToOutputDirectory", false),
+            new XElement("AppendPlatformToOutputPath", false),
+            new XElement("CopyBuildOutputToOutputDirectory", copyBuildOutput),
             new XElement("GenerateAssemblyInfo", false));
 
     private static XElement CoreCompileTarget() =>

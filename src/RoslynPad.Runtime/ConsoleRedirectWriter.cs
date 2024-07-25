@@ -1,24 +1,16 @@
-﻿using System;
-using System.IO;
-using System.Text;
+﻿using System.Text;
 
 namespace RoslynPad.Runtime;
 
 /// <summary>
 /// Redirects the console to the Dump method.
 /// </summary>
-internal class ConsoleRedirectWriter : TextWriter
+internal class ConsoleRedirectWriter(JsonConsoleDumper dumper, string? header = null) : TextWriter
 {
-    private readonly JsonConsoleDumper _dumper;
-    private readonly string? _header;
+    private readonly JsonConsoleDumper _dumper = dumper;
+    private readonly string? _header = header;
 
     public override Encoding Encoding => Encoding.UTF8;
-
-    public ConsoleRedirectWriter(JsonConsoleDumper dumper, string? header = null)
-    {
-        _dumper = dumper;
-        _header = header;
-    }
 
     public override void Write(string? value)
     {
@@ -68,5 +60,5 @@ internal class ConsoleRedirectWriter : TextWriter
 
     public override void Write(char value) => Dump(value);
 
-    private void Dump(object? value) => _dumper.Dump(new DumpData(value, _header, DumpQuotas.Default));
+    private void Dump(object? value) => _dumper.Dump(new DumpData(value, _header, Line: null, DumpQuotas.Default));
 }

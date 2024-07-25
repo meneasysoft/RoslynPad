@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.SignatureHelp;
@@ -13,16 +8,11 @@ using Microsoft.CodeAnalysis.Text;
 namespace RoslynPad.Roslyn.SignatureHelp;
 
 [Export(typeof(ISignatureHelpProvider)), Shared]
-internal sealed class AggregateSignatureHelpProvider : ISignatureHelpProvider
+[method: ImportingConstructor]
+internal sealed class AggregateSignatureHelpProvider([ImportMany] IEnumerable<Lazy<Microsoft.CodeAnalysis.SignatureHelp.ISignatureHelpProvider, OrderableLanguageMetadata>> providers) : ISignatureHelpProvider
 {
-    private ImmutableArray<Microsoft.CodeAnalysis.SignatureHelp.ISignatureHelpProvider> _providers;
-
-    [ImportingConstructor]
-    public AggregateSignatureHelpProvider([ImportMany] IEnumerable<Lazy<Microsoft.CodeAnalysis.SignatureHelp.ISignatureHelpProvider, OrderableLanguageMetadata>> providers)
-    {
-        _providers = providers.Where(x => x.Metadata.Language == LanguageNames.CSharp)
+    private ImmutableArray<Microsoft.CodeAnalysis.SignatureHelp.ISignatureHelpProvider> _providers = providers.Where(x => x.Metadata.Language == LanguageNames.CSharp)
             .Select(x => x.Value).ToImmutableArray();
-    }
 
     public bool IsTriggerCharacter(char ch)
     {
@@ -85,18 +75,11 @@ internal sealed class AggregateSignatureHelpProvider : ISignatureHelpProvider
         return bestItems == null || currentTextSpan?.Start > bestItems.ApplicableSpan.Start;
     }
 
-    private readonly struct SignatureHelpSelection
+    private readonly struct SignatureHelpSelection(SignatureHelpItem selectedItem, bool userSelected, int? selectedParameter)
     {
-        public SignatureHelpSelection(SignatureHelpItem selectedItem, bool userSelected, int? selectedParameter)
-        {
-            SelectedItem = selectedItem;
-            UserSelected = userSelected;
-            SelectedParameter = selectedParameter;
-        }
-
-        public int? SelectedParameter { get; }
-        public SignatureHelpItem SelectedItem { get; }
-        public bool UserSelected { get; }
+        public int? SelectedParameter { get; } = selectedParameter;
+        public SignatureHelpItem SelectedItem { get; } = selectedItem;
+        public bool UserSelected { get; } = userSelected;
     }
 
     private static class DefaultSignatureHelpSelector

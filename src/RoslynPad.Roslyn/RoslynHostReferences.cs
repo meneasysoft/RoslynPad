@@ -1,19 +1,18 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Roslyn.Utilities;
 
 namespace RoslynPad.Roslyn;
 
+#pragma warning disable IL3000 // Assembly.Location is fine here
+
 public class RoslynHostReferences
 {
     public static RoslynHostReferences Empty { get; } = new(
-        ImmutableArray<MetadataReference>.Empty,
+        [],
         ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        ImmutableArray<string>.Empty);
+        []);
 
     /// <summary>
     /// Returns namespace-only (no assemblies) defaults that fit all frameworks.

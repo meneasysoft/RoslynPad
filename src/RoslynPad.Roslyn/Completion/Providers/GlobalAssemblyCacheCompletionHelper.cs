@@ -1,28 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.Shared.Utilities;
 using Roslyn.Utilities;
 using System.Collections.Immutable;
-using System.Threading.Tasks;
-using System.Threading;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace RoslynPad.Roslyn.Completion.Providers;
 
-internal sealed class GlobalAssemblyCacheCompletionHelper
+internal sealed class GlobalAssemblyCacheCompletionHelper(CompletionItemRules itemRules)
 {
     private static readonly Lazy<List<string>> s_lazyAssemblySimpleNames =
          new(() => GlobalAssemblyCache.Instance.GetAssemblySimpleNames().ToList());
 
-    private readonly CompletionItemRules _itemRules;
-
-    public GlobalAssemblyCacheCompletionHelper(CompletionItemRules itemRules)
-    {
-        _itemRules = itemRules;
-    }
+    private readonly CompletionItemRules _itemRules = itemRules;
 
     public Task<ImmutableArray<CompletionItem>> GetItemsAsync(string directoryPath, CancellationToken cancellationToken)
     {
